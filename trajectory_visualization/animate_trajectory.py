@@ -65,7 +65,7 @@ def animation(
     fig = plt.figure()
 
     ax = fig.add_subplot(projection="3d")
-    ax.view_init(elev=40, azim=-60)
+    ax.view_init(elev=40, azim=90)
 
     # set plot boundaries and design
     ax.axes.set_xlim3d(left=world_minimums["xpos"], right=world_maximums["xpos"])

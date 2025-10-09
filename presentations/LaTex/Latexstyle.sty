@@ -1,0 +1,81 @@
+\usepackage{amsmath, amsfonts, amssymb, amsthm, mathtools, mathrsfs, extarrows, tikz-cd}
+\usepackage[utf8]{inputenc}
+\usepackage[english, english]{babel}
+\usepackage{hyperref}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{marvosym}
+\usepackage{lipsum}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{yfonts}
+\usepackage{bbm}
+\usepackage[tracking=true]{microtype}
+\usepackage[headsepline]{scrlayer-scrpage}
+\usepackage{tikz}
+\usetikzlibrary{decorations.pathreplacing}
+
+\newtheoremstyle{break}
+  {\topsep}{\topsep}%
+  {\itshape}{}%
+  {\bfseries}{}%
+  {\newline}{}%
+\theoremstyle{break}
+
+\allowdisplaybreaks
+
+\geometry{a4paper, total={180mm,257mm}, left=15mm, top=25mm, head=30pt}
+\setlength{\parindent}{0pt}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}{Lemma}[theorem]
+\newtheorem{remark}{Remark}[section]
+\newtheorem{proposition}{Behauptung}[theorem]
+\newtheorem{definition}{Definition}[section]
+\newtheorem{algorithm}{Algorithm}[section]
+\newtheorem{conjecture}{Conjecture}[section]
+\newtheorem{example}{Example}[section]
+\newcommand{\bb}{\mathbb}
+\newcommand{\bbm}{\mathbbm}
+\newcommand{\pfrac}[2]{\left(\frac{#1}{#2}\right)}
+\newcommand{\Norm}[1]{\left \Vert {#1}\right\Vert}
+\newcommand{\MT}[3]{\ihead{#1}\chead{\textup{#2}\\\textup{#3}}}
+\newcounter{Exer}
+\newcommand{\Exer}[0]{{\stepcounter{Exer}\bfseries Exercise \arabic{Exer}}\vspace{\baselineskip}}
+\newcommand{\Aufg}[0]{{\stepcounter{Exer}\bfseries Aufgabe \arabic{Exer}}\vspace{\baselineskip}}
+\newcommand{\verts}[1]{\left\vert #1 \right\vert}
+\newcommand{\Verts}[1]{\left\Vert #1 \right\Vert}
+\newcommand{\rb}[1]{\left( #1 \right)}
+\newcommand{\series}[1]{\left( #1 \right)_{n\in\mathbb{N}}}
+\newcommand{\limn}{\displaystyle \lim_{n\to\infty}}
+\newcommand{\disp}{\displaystyle}
+\newcommand{\LLRA}{\Longleftrightarrow}
+\newcommand{\lra}{\longrightarrow}
+\newcommand{\Lra}{\Longrightarrow}
+\newcommand{\convd}{\overset{D}{\longrightarrow}}
+\newcommand{\convp}{\overset{P}{\longrightarrow}}
+\newcommand{\convs}{\overset{S}{\longrightarrow}}
+\newcommand{\convas}{\overset{a.s.}{\longrightarrow}}
+\newcommand{\sumn}{\displaystyle \sum^n_{i=1}}
+\newcommand{\sumkz}{\displaystyle \sum^\infty_{k = 0}}
+\newcommand{\sumko}{\displaystyle \sum^\infty_{k = 1}}
+\newcommand{\intfy}{\displaystyle \int^\infty_{- \infty}}
+\newcommand{\indep}{\perp \!\!\! \perp}
+\newcommand{\mcal}[1]{\mathcal{#1}}
+\newcommand{\iid}{\overset{\textit{i.i.d.}}{\sim}}
+\newcommand{\inv}[1]{\displaystyle #1^{-1}}
+\newcommand{\os}[2]{\overset{#1}{#2}}
+
+
+
+\newcommand{\ZzText}[1]{ \fbox{\fbox{\parbox{\the\dimexpr\textwidth-13.6pt\relax}{\(\mathrm{Z\kern-.55em\raise-0.5ex\hbox{Z}}\) {#1}}}}}
+\newcommand{\Zz}[1]{ \fbox{\fbox{\parbox{\the\dimexpr\textwidth-13.6pt-\leftmargin\relax}{\(\mathrm{Z\kern-.55em\raise-0.5ex\hbox{Z}}\) {#1}}}}}
+\newcommand{\ZznText}[1]{\fbox{\fbox{\parbox{\the\dimexpr\textwidth-13.6pt-\leftmargin\relax}{ {#1}}}}}
+
+\DeclareMathOperator{\Aut}{Aut}
+\DeclareMathOperator{\Id}{Id}
+\DeclareMathOperator{\Span}{span}
+\DeclareMathOperator{\res}{res}
+\DeclareMathOperator{\ind}{ind}
+\DeclareMathOperator*{\argmin}{\displaystyle arg\,min}
+\DeclareMathOperator*{\argmax}{\displaystyle arg\,max}
+

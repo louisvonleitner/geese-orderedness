@@ -76,6 +76,10 @@ class Goose:
             # create a new flock
             return Flock()
 
+        # if the closest goose has not been assigned a flock yet, make an own flock
+        if closest_goose.flock == None:
+            return Flock()
+
         # logic of creating new flocks if a goose is too far away from other flocks
         if len(closest_goose.flock.geese) < 2:
             if distance_to_closest_goose > 1000:
