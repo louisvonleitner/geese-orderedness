@@ -47,8 +47,8 @@ def get_frame_locations(frame, individual_geese_trjs, column_names):
     return locations
 
 
-def calculate_clusteriness_and_distance(pos_1, pos_2, vel_1, vel_2):
-    """calculate and return the clusteriness and distance between two birds"""
+def calculate_clusteriness_and_distance(pos_1, pos_2, vel_1, vel_2, accel_1, accel_2):
+    """calculate and return the clusteriness, acceleration_clusteriness and distance between two birds"""
     distance = np.linalg.norm(pos_1 - pos_2)
     dot_prod = np.dot(vel_1, vel_2)
 
@@ -58,19 +58,35 @@ def calculate_clusteriness_and_distance(pos_1, pos_2, vel_1, vel_2):
             dot_prod / (np.linalg.norm(vel_1) * np.linalg.norm(vel_2))
         )
 
+        acceleration_alignment = np.dot(accel_1, accel_2)
+        acceleration_clusteriness = clusteriness * acceleration_alignment
+
     # division by 0 avoided (unclear speed = 0 !)
     else:
         clusteriness = 0
+        acceleration_clusteriness = 0
 
-    return clusteriness, distance
+    return clusteriness, acceleration_clusteriness, distance
 
 
 def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_trjs):
 
-    column_names = ["trj_id", "xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
+    column_names = [
+        "trj_id",
+        "xpos",
+        "ypos",
+        "zpos",
+        "xvel",
+        "yvel",
+        "zvel",
+        "xi",
+        "eta",
+        "zeta",
+    ]
 
     distance_matrices = []
     clusteriness_matrices = []
+    acceleration_clusteriness_matrices = []
 
     for frame in trange(first_frame, last_frame + 1):
         # update locations of geese and plot them
@@ -83,21 +99,24 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
         # same with clusteriness matrix
         clusteriness_matrix = np.zeros((n_trjs, n_trjs))
 
+        # same with acceleration_clusteriness matrix
+        acceleration_clusteriness_matrix = np.zeros((n_trjs, n_trjs))
+
         # array of geese indexed by trj_id
         geese_positions = {}
         geese_velocities = {}
+        geese_accelerations = {}
 
         if type(locations) == list:
             location_plotter = ax.scatter([], [], [], color="red")
         else:
             # iterate through geese and collect them in a dict
             for index, data in locations.iterrows():
-                trj_id, x, y, z, xvel, yvel, zvel = data[
-                    ["trj_id", "xpos", "ypos", "zpos", "xvel", "yvel", "zvel"]
-                ]
+                trj_id, x, y, z, xvel, yvel, zvel, xi, eta, zeta = data[column_names]
                 # store data in dicts
                 geese_positions[trj_id] = np.array([x, y, z])
                 geese_velocities[trj_id] = np.array([xvel, yvel, zvel])
+                geese_accelerations[trj_id] = np.array([xi, eta, zeta])
 
             # iterate through geesee and calculate distances
             for trj_1 in geese_positions:
@@ -116,11 +135,15 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
 
                     # if distance_matrix[trj_id][other_trj_id] == 0:
                     else:
-                        clusteriness, distance = calculate_clusteriness_and_distance(
-                            pos_1=geese_positions[trj_id],
-                            pos_2=geese_positions[other_trj_id],
-                            vel_1=geese_velocities[trj_id],
-                            vel_2=geese_velocities[other_trj_id],
+                        clusteriness, acceleration_clusteriness, distance = (
+                            calculate_clusteriness_and_distance(
+                                pos_1=geese_positions[trj_id],
+                                pos_2=geese_positions[other_trj_id],
+                                vel_1=geese_velocities[trj_id],
+                                vel_2=geese_velocities[other_trj_id],
+                                accel_1=geese_accelerations[trj_id],
+                                accel_2=geese_accelerations[other_trj_id],
+                            )
                         )
 
                         # track distance in matrix (symmetrical)
@@ -131,8 +154,17 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
                         clusteriness_matrix[trj_id][other_trj_id] = clusteriness
                         clusteriness_matrix[other_trj_id][trj_id] = clusteriness
 
+                        # track acceleration clusteriness in matrix (symmetrical)
+                        acceleration_clusteriness_matrix[trj_id][
+                            other_trj_id
+                        ] = acceleration_clusteriness
+                        acceleration_clusteriness_matrix[other_trj_id][
+                            trj_id
+                        ] = acceleration_clusteriness
+
         distance_matrices.append(distance_matrix)
         clusteriness_matrices.append(clusteriness_matrix)
+        acceleration_clusteriness_matrices.append(acceleration_clusteriness_matrix)
 
     with open("distance_matrices.csv", "w", newline="") as f:
         writer = csv.writer(f)
@@ -146,11 +178,30 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
             writer.writerows(matrix)
             writer.writerow([])
 
+    with open("acceleration_clusteriness_matrices.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        for i, matrix in enumerate(acceleration_clusteriness_matrices):
+            writer.writerows(matrix)
+            writer.writerow([])
+
 
 # ====================================================================================================
 # setting values to be used from dataset
-column_numbers = [0, 1, 6, 7, 8, 12, 13, 14, 15]
-column_names = ["trj_id", "frame", "xpos", "ypos", "zpos", "xvel", "yvel", "zvel", "n"]
+column_numbers = [0, 1, 6, 7, 8, 12, 13, 14, 15, 16, 17, 18]
+column_names = [
+    "trj_id",
+    "frame",
+    "xpos",
+    "ypos",
+    "zpos",
+    "xvel",
+    "yvel",
+    "zvel",
+    "n",
+    "xi",
+    "eta",
+    "zeta",
+]
 filename = "C:/Python Projects/tohoku_university/geese_project/data/20201206-S6F1820E1#3S20.trj"
 # =====================================================================================================
 
@@ -159,10 +210,6 @@ filename = "C:/Python Projects/tohoku_university/geese_project/data/20201206-S6F
 df, individual_geese_trjs, n_trjs = read_trajectory_data(
     filename, column_numbers, column_names
 )
-
-# defining boundaries of plot by finding maximum and minimum of values
-world_maximums = df[["xpos", "ypos", "zpos"]].max()
-world_minimums = df[["xpos", "ypos", "zpos"]].min()
 
 # defining movie length
 first_frame = int(df["frame"].min())
