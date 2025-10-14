@@ -66,7 +66,7 @@ y0_index = np.argmin(np.abs(y - 0))
 ax.axvline(x=x0_index + 0.5, color="black", linewidth=0.5)
 ax.axhline(y=y0_index + 0.5, color="black", linewidth=0.5)
 
-plt.title("Logarithmic Coherence Heatmap around Epicenter")
+plt.title("Simple Coherence Heatmap around Epicenter")
 plt.xlabel("x")
 plt.ylabel("y")
 

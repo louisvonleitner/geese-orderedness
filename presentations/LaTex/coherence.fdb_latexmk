@@ -1,5 +1,5 @@
 # Fdb version 4
-["pdflatex"] 1759985261.07988 "c:/Python Projects/tohoku_university/geese_project/presentations/LaTex/coherence.tex" "coherence.pdf" "coherence" 1759985262.5013 0
+["pdflatex"] 1759989106.68602 "c:/Python Projects/tohoku_university/geese_project/presentations/LaTex/coherence.tex" "coherence.pdf" "coherence" 1759989108.41646 0
   "C:/Users/luigi/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map" 1759971390 82714 c9c37d051a0c563641ee6353df77525b ""
   "C:/Users/luigi/AppData/Local/MiKTeX/miktex/data/le/pdftex/pdflatex.fmt" 1730656414 11985491 56cdc3e2810901d7290180aba8d208a8 ""
   "C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1233951848 1004 54797486969f23fa377b128694d548df ""
@@ -195,15 +195,15 @@
   "C:/Users/luigi/AppData/Local/Programs/MiKTeX/tex/latex/translator/translator.sty" 1622471510 8765 56d370785f0143111ff9898b5adfe08e ""
   "C:/Users/luigi/AppData/Local/Programs/MiKTeX/tex/latex/url/url.sty" 1388490452 12796 8edb7d69a20b857904dd0ea757c14ec9 ""
   "C:/Users/luigi/AppData/Local/Programs/MiKTeX/tex/latex/xcolor/xcolor.sty" 1729265222 55384 b454dec21c2d9f45ec0b793f0995b992 ""
-  "c:/Python Projects/tohoku_university/geese_project/presentations/LaTex/coherence.tex" 1759985260 5680 3aaf15e17cc71011f67d3a6c0225122c ""
-  "coherence.aux" 1759985262 2862 f8aef11a03ccb4ce95e822a5da8a6f3a "pdflatex"
-  "coherence.nav" 1759985262 1430 e5361c6e2ae3c52f95b9d62605877c10 "pdflatex"
-  "coherence.out" 1759985262 191 0d40708ce76cd0916eac73598343ad14 "pdflatex"
-  "coherence.tex" 1759985260 5680 3aaf15e17cc71011f67d3a6c0225122c ""
-  "figures/coherence_from_epicenter.png" 1759983372 31554 c40845f8073f38a64e62bf3b6892839d ""
-  "figures/coherence_simple.png" 1759975156 29876 647bba51e9207392963082c60e44036a ""
-  "figures/coherence_with_log.png" 1759975112 33647 6719e2700aa94eeadcbcd1ffbf937671 ""
-  "figures/logarithmic_coherence_map_epicenter.png" 1759983336 43820 5cf54d283962921f158a717718f518d2 ""
+  "c:/Python Projects/tohoku_university/geese_project/presentations/LaTex/coherence.tex" 1759989106 5776 a5da197f850bcc154b3217183d4ae998 ""
+  "coherence.aux" 1759989108 2862 f8aef11a03ccb4ce95e822a5da8a6f3a "pdflatex"
+  "coherence.nav" 1759989108 1430 e5361c6e2ae3c52f95b9d62605877c10 "pdflatex"
+  "coherence.out" 1759989108 191 0d40708ce76cd0916eac73598343ad14 "pdflatex"
+  "coherence.tex" 1759989106 5776 a5da197f850bcc154b3217183d4ae998 ""
+  "figures/coherence_simple.png" 1759988810 29876 647bba51e9207392963082c60e44036a ""
+  "figures/coherence_with_log.png" 1759988810 33647 6719e2700aa94eeadcbcd1ffbf937671 ""
+  "figures/logarithmic_coherence_map_epicenter.png" 1759988810 43820 5cf54d283962921f158a717718f518d2 ""
+  "figures/simple_coherence_from_epicenter.png" 1759989074 28988 075736d64f93209cd78c580b65909607 ""
   (generated)
   "coherence.aux"
   "coherence.log"

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.11.3)  9 OCT 2025 13:47
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (MiKTeX 24.4) (preloaded format=pdflatex 2024.11.3)  9 OCT 2025 14:51
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -762,23 +762,23 @@ Overfull \hbox (34.56987pt too wide) in paragraph at lines 104--104
 [12
 
  <./figures/coherence_simple.png> <./figures/coherence_with_log.png>]
-<figures/coherence_from_epicenter.png, id=346, 720.5319pt x 572.3784pt>
-File: figures/coherence_from_epicenter.png Graphic file (type png)
-<use figures/coherence_from_epicenter.png>
-Package pdftex.def Info: figures/coherence_from_epicenter.png  used on input line 125.
-(pdftex.def)             Requested size: 172.84937pt x 137.30374pt.
+<figures/simple_coherence_from_epicenter.png, id=346, 599.841pt x 461.0826pt>
+File: figures/simple_coherence_from_epicenter.png Graphic file (type png)
+<use figures/simple_coherence_from_epicenter.png>
+Package pdftex.def Info: figures/simple_coherence_from_epicenter.png  used on input line 126.
+(pdftex.def)             Requested size: 172.84937pt x 132.86626pt.
 
-Overfull \hbox (34.56987pt too wide) in paragraph at lines 125--125
+Overfull \hbox (34.56987pt too wide) in paragraph at lines 126--126
  [] 
  []
 
 <figures/logarithmic_coherence_map_epicenter.png, id=347, 720.5319pt x 572.3784pt>
 File: figures/logarithmic_coherence_map_epicenter.png Graphic file (type png)
 <use figures/logarithmic_coherence_map_epicenter.png>
-Package pdftex.def Info: figures/logarithmic_coherence_map_epicenter.png  used on input line 125.
+Package pdftex.def Info: figures/logarithmic_coherence_map_epicenter.png  used on input line 126.
 (pdftex.def)             Requested size: 172.84937pt x 137.30374pt.
 
-Overfull \hbox (34.56987pt too wide) in paragraph at lines 125--125
+Overfull \hbox (34.56987pt too wide) in paragraph at lines 126--126
  [] 
  []
 
@@ -786,7 +786,7 @@ Overfull \hbox (34.56987pt too wide) in paragraph at lines 125--125
 
 [13
 
- <./figures/coherence_from_epicenter.png> <./figures/logarithmic_coherence_map_epicenter.png>]
+ <./figures/simple_coherence_from_epicenter.png> <./figures/logarithmic_coherence_map_epicenter.png>]
 
 [14
 
@@ -810,14 +810,14 @@ Package rerunfilecheck Info: File `coherence.out' has not changed.
  ) 
 Here is how much of TeX's memory you used:
  21600 strings out of 473702
- 420651 string characters out of 5719438
+ 420700 string characters out of 5719438
  782527 words of memory out of 5000000
  44191 multiletter control sequences out of 15000+600000
  567077 words of font info for 67 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  128i,14n,123p,457b,581s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmex10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi8.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmss10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmss12.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmss8.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmssbx10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmssi10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmssi8.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/cmsy8.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb><C:/Users/luigi/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
-Output written on coherence.pdf (14 pages, 334888 bytes).
+Output written on coherence.pdf (14 pages, 331661 bytes).
 PDF statistics:
  468 PDF objects out of 1000 (max. 8388607)
  35 named destinations out of 1000 (max. 500000)
