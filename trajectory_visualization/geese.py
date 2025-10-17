@@ -17,15 +17,17 @@ class Goose:
         """Initialize a goose instance with an id and position"""
         self.trj_id = trj_id
         self.position = np.array([xpos, ypos, zpos])
-        self.update_flock()
+        # self.update_flock()
         Goose.all_geese[trj_id] = self
         Goose.active_geese[trj_id] = self
         (self.location_plotter,) = ax.plot(
-            [xpos], [ypos], [zpos], "o", color=self.flock.color
+            [xpos],
+            [ypos],
+            [zpos],
+            "o",
+            color="red",
         )  # TODO: Make this color the flock color # matplotlib object
-        (self.history_plotter,) = ax.plot3D(
-            [], [], [], color=self.flock.color, linewidth=".4"
-        )
+        (self.history_plotter,) = ax.plot3D([], [], [], color="red", linewidth=".4")
         self.historical_flight_path = {
             "xlocs": [xpos],
             "ylocs": [ypos],
@@ -60,7 +62,7 @@ class Goose:
         self.historical_flight_path["zlocs"].append(zpos)
 
         # update flock it belongs to
-        self.update_flock()
+        # self.update_flock()
 
         return True
 
@@ -110,8 +112,8 @@ class Goose:
     def deactivate(self):
         """Deactivate a Goose because it is not moving any more"""
         del Goose.active_geese[self.trj_id]
-        self.flock.geese.remove(self)
-        self.flock = None
+        # self.flock.geese.remove(self)
+        # self.flock = None
         self.location_plotter.remove()
         return True
 

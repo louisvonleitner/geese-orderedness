@@ -8,7 +8,6 @@ from tqdm import trange
 
 from geese import Goose, Flock
 
-
 # movie metadata
 # ======================================================================================
 plt.rcParams["animation.ffmpeg_path"] = (
@@ -95,7 +94,7 @@ def animation(
                     goose = Goose.active_geese[trj_id]
                     if trj_id not in locations["trj_id"]:
                         goose.absent_counter += 1
-                        if goose.absent_counter >= 60:
+                        if goose.absent_counter >= 10:
                             geese_to_remove.append(goose)
 
                 for goose in geese_to_remove:
@@ -160,7 +159,9 @@ def animation(
 # setting values to be used from dataset
 column_numbers = [0, 1, 6, 7, 8, 12, 13, 14, 15]
 column_names = ["trj_id", "frame", "xpos", "ypos", "zpos", "xvel", "yvel", "zvel", "n"]
-filename = "20201206-S6F1820E1#3S20.trj"
+filename = (
+    "C:/Python Projects/tohoku_university/geese_project/data/20241216-S4F3E1#1S15.trj"
+)
 # =====================================================================================================
 
 
