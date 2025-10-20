@@ -105,19 +105,12 @@ def acceleration_cartesian(v, xi, eta, zeta):
 
 def calculate_clusteriness_and_distance(pos_1, pos_2, vel_1, vel_2, accel_1, accel_2):
     """calculate and return the clusteriness, acceleration_clusteriness, distance and asymetric_metric between two birds"""
-
-    # boltzmann factors
-    beta = 0.2
-    a = 1
-    b = 0.5
-    c = 0.5
-
     distance = np.linalg.norm(pos_1 - pos_2)
-    velocity_alignment = np.dot(vel_1, vel_2)
+    dot_prod = np.dot(vel_1, vel_2)
 
-    velocity_norm = np.linalg.norm(vel_1) * np.linalg.norm(vel_2)
-    if velocity_norm != 0:
-        clusteriness = (1 / distance) * (velocity_alignment / velocity_norm)
+    norming_factor = np.linalg.norm(vel_1) * np.linalg.norm(vel_2)
+    if norming_factor != 0:
+        clusteriness = (1 / distance) * (dot_prod / norming_factor)
 
         acceleration_alignment = np.dot(accel_1, accel_2)
         acceleration_norm = np.linalg.norm(accel_1) * np.linalg.norm(accel_2)
@@ -128,25 +121,26 @@ def calculate_clusteriness_and_distance(pos_1, pos_2, vel_1, vel_2, accel_1, acc
                 clusteriness * acceleration_alignment / acceleration_norm
             )
 
-            H = (
-                a * (1 / distance)
-                - b * (velocity_alignment / velocity_norm)
-                - c * (acceleration_alignment / acceleration_norm)
-            )
-            boltzmann_weight = np.exp(-(beta * H))
-
         else:
             acceleration_clusteriness = 0
-            boltzmann_weight = 0
 
-        # division by 0 avoided (unclear speed = 0 !)
+        # if other bird in front, asymmetric metric
+        if np.dot((pos_1 - pos_2), (vel_1 + vel_2)) < 0:
+            asymetric_metric = acceleration_clusteriness
+        else:
+            asymetric_metric = 0
+
+        clusteriness = sigmoid(clusteriness)
+        acceleration_clusteriness = sigmoid(acceleration_clusteriness)
+        asymetric_metric = sigmoid(asymetric_metric)
+
+    # division by 0 avoided (unclear speed = 0 !)
     else:
-        pass
-        # clusteriness = 0
+        clusteriness = 0
         acceleration_clusteriness = 0
-        boltzmann_weight = 0
+        asymetric_metric = 0
 
-    return distance, acceleration_clusteriness, boltzmann_weight
+    return clusteriness, acceleration_clusteriness, distance, asymetric_metric
 
 
 def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_trjs):
@@ -165,24 +159,31 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
     ]
 
     distance_matrices = []
+    clusteriness_matrices = []
     acceleration_clusteriness_matrices = []
-    boltzmann_matrices = []
+    asymetric_metric_matrices = []
 
     for frame in trange(first_frame, last_frame + 1):
         # update locations of geese and plot them
         locations = get_frame_locations(frame, individual_geese_trjs, column_names)
 
         # create a distance matrix to be filled with dimensions:
-        # amount of birds x amount of birds
-        distance_matrix = np.zeros((n_trjs, n_trjs))
+        # amount of birds in this frame x amount of birds in this frame
+        distance_matrix = np.zeros((locations.shape[0], locations.shape[0]))
+
+        # same with clusteriness matrix
+        clusteriness_matrix = np.zeros((locations.shape[0], locations.shape[0]))
 
         # same with acceleration_clusteriness matrix
-        acceleration_clusteriness_matrix = np.zeros((n_trjs, n_trjs))
+        acceleration_clusteriness_matrix = np.zeros(
+            (locations.shape[0], locations.shape[0])
+        )
 
-        # same with boltzmann_weight matrix
-        boltzmann_matrix = np.zeros((n_trjs, n_trjs))
+        # same with asymetric metric matrix
+        asymetric_metric_matrix = np.zeros((locations.shape[0], locations.shape[0]))
 
         # array of geese indexed by trj_id
+        geese_trj_ids = {}
         geese_positions = {}
         geese_velocities = {}
         geese_accelerations = {}
@@ -190,15 +191,20 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
         if type(locations) == list:
             location_plotter = ax.scatter([], [], [], color="red")
         else:
+            # determining indexing of birds in dicts
+            i = 0
             # iterate through geese and collect them in a dict
             for index, data in locations.iterrows():
                 trj_id, x, y, z, xvel, yvel, zvel, xi, eta, zeta = data[column_names]
                 # store data in dicts
-                geese_positions[trj_id] = np.array([x, y, z])
-                geese_velocities[trj_id] = np.array([xvel, yvel, zvel])
-                geese_accelerations[trj_id], orthogonal_basis = acceleration_cartesian(
-                    geese_velocities[trj_id], xi, eta, zeta
+                geese_trj_ids[i] = trj_id
+                geese_positions[i] = np.array([x, y, z])
+                geese_velocities[i] = np.array([xvel, yvel, zvel])
+                geese_accelerations[i], orthogonal_basis = acceleration_cartesian(
+                    geese_velocities[i], xi, eta, zeta
                 )
+
+                i += 1
 
             # iterate through geesee and calculate distances
             for trj_1 in geese_positions:
@@ -212,15 +218,13 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
                     if trj_id == other_trj_id:
                         pass
 
-                    elif distance_matrix[trj_id][other_trj_id] != 0:
-                        pass
-
                     # if distance_matrix[trj_id][other_trj_id] == 0:
                     else:
                         (
-                            distance,
+                            clusteriness,
                             acceleration_clusteriness,
-                            boltzmann_weight,
+                            distance,
+                            asymetric_metric,
                         ) = calculate_clusteriness_and_distance(
                             pos_1=geese_positions[trj_id],
                             pos_2=geese_positions[other_trj_id],
@@ -232,27 +236,32 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
 
                         # track distance in matrix (symmetrical)
                         distance_matrix[trj_id][other_trj_id] = distance
-                        distance_matrix[other_trj_id][trj_id] = distance
+
+                        # track clusteriness in matrix (symmetrical)
+                        clusteriness_matrix[trj_id][other_trj_id] = clusteriness
 
                         # track acceleration clusteriness in matrix (symmetrical)
                         acceleration_clusteriness_matrix[trj_id][
                             other_trj_id
                         ] = acceleration_clusteriness
-                        acceleration_clusteriness_matrix[other_trj_id][
-                            trj_id
-                        ] = acceleration_clusteriness
 
-                        # track boltzmann weight matrix (symmetrical)
-                        boltzmann_matrix[trj_id][other_trj_id] = boltzmann_weight
-                        boltzmann_matrix[other_trj_id][trj_id] = boltzmann_weight
+                        # track asymetric metric
+                        asymetric_metric_matrix[trj_id][other_trj_id] = asymetric_metric
 
         distance_matrices.append(distance_matrix)
+        clusteriness_matrices.append(clusteriness_matrix)
         acceleration_clusteriness_matrices.append(acceleration_clusteriness_matrix)
-        boltzmann_matrices.append(boltzmann_matrix)
+        asymetric_metric_matrices.append(asymetric_metric_matrix)
 
     with open("distance_matrices.csv", "w", newline="") as f:
         writer = csv.writer(f)
         for i, matrix in enumerate(distance_matrices):
+            writer.writerows(matrix)
+            writer.writerow([])
+
+    with open("clusteriness_matrices.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        for i, matrix in enumerate(clusteriness_matrices):
             writer.writerows(matrix)
             writer.writerow([])
 
@@ -262,9 +271,9 @@ def calculate_min_distances(individual_geese_trjs, first_frame, last_frame, n_tr
             writer.writerows(matrix)
             writer.writerow([])
 
-    with open("boltzmann_matrices.csv", "w", newline="") as f:
+    with open("asymetric_metric_matrices.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        for i, matrix in enumerate(boltzmann_matrices):
+        for i, matrix in enumerate(asymetric_metric_matrices):
             writer.writerows(matrix)
             writer.writerow([])
 
