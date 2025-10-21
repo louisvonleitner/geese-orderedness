@@ -1,0 +1,221 @@
+import pandas as pd
+import numpy as np
+from tqdm import trange
+import csv
+import json
+import os
+
+# plotting
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+
+# project's own modules
+
+
+def calculate_laplacian_matrix(matrix):
+    """Using formula L = D - A to compute laplacian matrix"""
+
+    # calculate (TODO in or out?) degrees
+    degrees = matrix.sum(axis=1)
+
+    # create degree matrix
+    degree_matrix = np.diag(degrees)
+
+    laplacian = degree_matrix - matrix
+
+    return laplacian, degrees
+
+
+def compute_algebraic_connectivity_and_connected_components(
+    matrix: np.ndarray, tol=1e-12
+) -> (float, int):
+    """compute laplaican matrix and its eigenvalues and its number of connected components"""
+
+    n = matrix.shape[0]
+
+    laplacian, degrees = calculate_laplacian_matrix(matrix)
+
+    laplacian = np.nan_to_num(laplacian, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Initialize D^{-1/2}
+    D_inv_sqrt = np.zeros((n, n))
+    for i, d in enumerate(degrees):
+        if d > 0:
+            D_inv_sqrt[i, i] = 1.0 / np.sqrt(d)
+        else:
+            D_inv_sqrt[i, i] = 0.0  # isolated node
+
+    normalized_laplacian = np.eye(n) - D_inv_sqrt @ matrix @ D_inv_sqrt
+
+    normalized_laplacian = np.nan_to_num(
+        normalized_laplacian, nan=0.0, posinf=0.0, neginf=0.0
+    )
+    # No. of connected components is the rank of the kernel matrix.
+    # the dimension of the kernel matrix is the dimension of the matrix - its rank
+    laplacian_rank = np.linalg.matrix_rank(laplacian, tol)
+    kernel_rank = n - laplacian_rank
+
+    laplacian_eigenvalues_normed = np.linalg.eigvals(normalized_laplacian)
+    eigenvalues_sorted = np.sort(laplacian_eigenvalues_normed)
+
+    algebraic_connectivity = eigenvalues_sorted[1]
+
+    return algebraic_connectivity, kernel_rank
+
+
+def read_frames_from_csv(filename):
+    frames = []
+    current_frame = []
+
+    with open(filename, "r", newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row:  # Blank row signals new frame
+                if current_frame:
+                    frames.append(np.array(current_frame, dtype=float))
+                    current_frame = []
+            else:
+                current_frame.append([float(x) for x in row])
+
+        # Add the last frame if file didn't end with a blank line
+        if current_frame:
+            frames.append(np.array(current_frame, dtype=float))
+
+    return frames
+
+
+def read_metric_matrices(metrics: list, filename: str):
+
+    for metric in metrics:
+        filepath = f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/{metric["name"]}_matrices.csv"
+        matrices = read_frames_from_csv(filepath)
+        metric["matrices"] = matrices
+
+    return metrics
+
+
+def plot_distribution(metric: dict, showing=True, saving=False):
+
+    all_values = np.concatenate([m.ravel() for m in metric["matrices"]])
+    # ignoring 0 values
+    all_values = all_values[all_values > 0]
+    mask = np.isfinite(all_values)
+    print(np.any(~mask))
+    print("NaNs:", np.isnan(all_values).sum())
+    print("Infs:", np.isinf(all_values).sum())
+    all_values = all_values[np.isfinite(all_values)]
+    threshold = np.percentile(all_values, 80)
+    all_values = all_values[all_values <= threshold]
+
+    counts, bins = np.histogram(all_values, bins=200)
+
+    sns.lineplot(x=bins[:-1], y=counts, color=metric["color"])
+
+    plt.grid(color="lightgrey")
+
+    # figure prettiness
+    plt.title(f"{metric["name"]} Distribution")
+    plt.xlabel(f"{metric["name"]}")
+
+    if showing == True:
+        plt.show()
+
+    if saving == True:
+        os.makedirs(
+            os.path.dirname(
+                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_distribution.png"
+            ),
+            exist_ok=True,
+        )
+        plt.savefig(
+            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_distribution.png"
+        )
+        plt.close()
+
+
+def calculate_matrix_metrics_over_time(metric: dict):
+    matrix_metrics = []
+    for matrix_index in trange(len(metric["matrices"])):
+        matrix = metric["matrices"][matrix_index]
+
+        algebraic_connectivity, kernel_rank = (
+            compute_algebraic_connectivity_and_connected_components(matrix)
+        )
+        data = {
+            "algebraic_connectivity": algebraic_connectivity,
+            "kernel_rank": kernel_rank,
+        }
+
+        matrix_metrics.append(data)
+
+    metric["matrix_metrics"] = matrix_metrics
+
+    return matrix_metrics
+
+
+def plot_matrix_metrics(metric: dict, showing=True, saving=False):
+
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+
+    frames = [i for i in range(len(metric["matrices"]))]
+
+    data_points = ["algebraic_connectivity", "kernel_rank"]
+
+    for j in range(2):
+        plot_axis = ax[j]
+
+        sns.lineplot(
+            x=frames,
+            y=[data[data_points[j]] for data in metric["matrix_metrics"]],
+            ax=plot_axis,
+            color=metric["color"],
+        )
+
+        plot_axis.set_title(f"""{metric['name']} {data_points[j]} over time""")
+        plot_axis.set_xlabel(f"""frame""")
+        plot_axis.set_ylabel(f"""{metric['name']} {data_points[j]}""")
+        plot_axis.grid(color="lightgrey")
+
+    plt.tight_layout()
+
+    if showing == True:
+        plt.show()
+
+    if saving == True:
+        os.makedirs(
+            os.path.dirname(
+                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_matrix_metrics.png"
+            ),
+            exist_ok=True,
+        )
+        plt.savefig(
+            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_matrix_metrics.png"
+        )
+        plt.close()
+
+
+def load_metrics(filename):
+    with open(
+        f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/metrics.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        metrics = json.load(f)
+
+    return metrics
+
+
+filename = "20201206-S6F1820E1#3S20"
+
+metrics = load_metrics(filename)
+metrics = read_metric_matrices(metrics, filename)
+
+for metric in metrics:
+    calculate_matrix_metrics_over_time(metric)
+
+for metric in metrics:
+    plot_distribution(metric, showing=False, saving=True)
+
+for metric in metrics:
+    plot_matrix_metrics(metric, showing=False, saving=True)

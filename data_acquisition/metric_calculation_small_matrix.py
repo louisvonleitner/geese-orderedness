@@ -312,30 +312,33 @@ def calculate_metrics(metrics: list, filename: str):
     # starting loop
     for frame in trange(first_frame, last_frame):
 
-        # create adjacency matrix place holders for every metric
-        for metric in metrics:
-            metric["matrices"].append(np.zeros((n_trjs, n_trjs)))
-
         # get geese in nice dict
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
 
+        n_geese = len(geese)
+
+        # create adjacency matrix place holders for every metric
+        for metric in metrics:
+            metric["matrices"].append(np.zeros((n_geese, n_geese)))
+
         # iterate through geesee and calculate metric matrices
+        i = -1
         for first_goose_index in geese:
 
+            i += 1
             goose_1 = geese[first_goose_index]
 
+            j = -1
             for second_goose_index in geese:
 
+                j += 1
                 goose_2 = geese[second_goose_index]
 
                 if goose_1["trj_id"] == goose_2["trj_id"]:
                     pass
 
                 # if the symmetric value has been computed already
-                elif (
-                    metrics[0]["matrices"][-1][goose_1["trj_id"]][goose_2["trj_id"]]
-                    != 0
-                ):
+                elif metrics[0]["matrices"][-1][i][j] != 0:
                     pass
 
                 # if adjacency_matrix[trj_id][other_trj_id] == 0:
@@ -346,14 +349,10 @@ def calculate_metrics(metrics: list, filename: str):
                         metric_weight = metric["function"](goose_1, goose_2)
 
                         # setting weight in adjacency matrix
-                        metric["matrices"][-1][goose_1["trj_id"]][
-                            goose_2["trj_id"]
-                        ] = metric_weight
+                        metric["matrices"][-1][i][j] = metric_weight
 
                         if metric["symmetric"] == True:
-                            metric["matrices"][-1][goose_2["trj_id"]][
-                                goose_1["trj_id"]
-                            ] = metric_weight
+                            metric["matrices"][-1][j][i] = metric_weight
 
     print(f"Saving metrics...")
 
@@ -406,7 +405,7 @@ metrics.append(boltzmann_metric_dict)
 metrics = []
 
 
-param_list = np.linspace(0.2, 2, 10)
+param_list = np.linspace(0.01, 2, 10)
 b_list = np.linspace(0.2, 10, 10)
 c_list = np.linspace(0.2, 10, 10)
 beta_list = np.linspace(0.1, 1, 10)

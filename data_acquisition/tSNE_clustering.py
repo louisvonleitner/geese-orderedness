@@ -48,6 +48,70 @@ def get_frame_locations(frame, individual_geese_trjs, column_names):
     return locations
 
 
+def acceleration_cartesian(v, xi, eta, zeta):
+    """
+    Compute the Cartesian acceleration vector given components along
+    an orthogonal (not necessarily orthonormal) basis defined by a direction vector v.
+
+    Parameters
+    ----------
+    v : array-like, shape (3,)
+        Reference direction vector.
+    xi : float
+        Acceleration along v.
+    eta : float
+        Acceleration along horizontal perpendicular axis (to the right when values are +).
+    zeta : float
+        Acceleration along perpendicular vertical axis (to the top when values are +).
+
+    Returns
+    -------
+    a_cartesian : np.ndarray, shape (3,)
+        Cartesian acceleration vector.
+    basis : tuple of np.ndarray
+        The three orthogonal basis vectors (v_dir, eta_dir, zeta_dir).
+    """
+
+    v = np.array(v, dtype=float)
+    v_norm = np.linalg.norm(v)
+
+    # if vector is 0 vector say there is no acceleration
+    if v_norm == 0:
+        v_dir = np.array([0, 0, 0])
+    else:
+        v_dir = v / np.linalg.norm(v)
+
+    # Define world vertical (z-axis)
+    z_axis = np.array([0.0, 0.0, 1.0])
+
+    # Compute horizontal perpendicular direction (eta_dir)
+    eta_dir = np.cross(z_axis, v_dir)
+    if np.linalg.norm(eta_dir) < 1e-8:
+        # v is parallel to z-axis; pick arbitrary horizontal axis
+        eta_dir = np.array([1.0, 0.0, 0.0])
+    else:
+        eta_dir = eta_dir / np.linalg.norm(eta_dir)
+
+    # Compute the third orthogonal direction (zeta_dir)
+    zeta_dir = np.cross(eta_dir, v_dir)
+
+    # Combine the three components
+    a_cartesian = xi * v_dir - eta * eta_dir - zeta * zeta_dir
+    return a_cartesian
+
+
+def convert_acceleration(df):
+
+    for index, row in df.iterrows():
+        xi, eta, zeta = row[["xi", "eta", "zeta"]]
+        v = np.array([row["xvel"], row["yvel"], row["zvel"]])
+        cartesian_acceleration = acceleration_cartesian(v, xi, eta, zeta)
+        xacc, yacc, zacc = cartesian_acceleration
+        df.loc[index, ["xacc", "yacc", "zacc"]] = xacc, yacc, zacc
+
+    return df
+
+
 # ===================================================================================================
 # TSNE PART
 # ===================================================================================================
@@ -60,29 +124,50 @@ def apply_tsne(frame, individual_geese_trjs):
         "xpos",
         "ypos",
         "zpos",
+        "xvel",
+        "yvel",
+        "zvel",
+        "xi",
+        "eta",
+        "zeta",
     ]
 
     # get locations
     locations = get_frame_locations(frame, individual_geese_trjs, column_names)
 
-    positions = locations[["xpos", "ypos", "zpos"]].to_numpy()
+    locations = convert_acceleration(locations)
+
+    X = locations[
+        ["xpos", "ypos", "zpos", "xvel", "yvel", "zvel", "xacc", "yacc", "zacc"]
+    ].to_numpy()
+
+    # print("Starting PCA")
+    # pca = PCA(n_components=0.95, random_state=42)
+    # X_pca = pca.fit_transform(X)
+    # print(f"PCA reduced shape: {X_pca.shape}")
 
     tsne = TSNE(
         n_components=2,
-        perplexity=5,
+        perplexity=4,
         random_state=42,
-        max_iter=10000,
+        max_iter=3000,
         learning_rate="auto",
+        early_exaggeration=12.0,
     )
 
-    embedded_positions = tsne.fit_transform(positions)
+    print("starting tSNE")
+    embedded_X = tsne.fit_transform(X)
+
+    # coloring
+    mask = X[:, 2] < 34
 
     # --- Plot before (3D) and after (2D) ---
     fig = plt.figure(figsize=(12, 5))
 
     # Original 3D
     ax1 = fig.add_subplot(121, projection="3d")
-    ax1.scatter(positions[:, 0], positions[:, 1], positions[:, 2], s=80, c="steelblue")
+    ax1.scatter(X[~mask, 0], X[~mask, 1], X[~mask, 2], s=80, c="green")
+    ax1.scatter(X[mask, 0], X[mask, 1], X[mask, 2], s=80, c="red")
     ax1.set_title("Original 3D Data")
     ax1.set_xlabel("X1")
     ax1.set_ylabel("X2")
@@ -90,7 +175,8 @@ def apply_tsne(frame, individual_geese_trjs):
 
     # t-SNE 2D
     ax2 = fig.add_subplot(122)
-    ax2.scatter(embedded_positions[:, 0], embedded_positions[:, 1], s=80, c="crimson")
+    ax2.scatter(embedded_X[~mask, 0], embedded_X[~mask, 1], s=80, c="green")
+    ax2.scatter(embedded_X[mask, 0], embedded_X[mask, 1], s=80, c="red")
     ax2.set_title("t-SNE Embedding (3D → 2D)")
     ax2.set_xlabel("t-SNE 1")
     ax2.set_ylabel("t-SNE 2")
@@ -128,4 +214,4 @@ df, individual_geese_trjs, n_trjs = read_trajectory_data(
 
 
 # launch distance calculations
-apply_tsne(2100, individual_geese_trjs)
+apply_tsne(2150, individual_geese_trjs)
