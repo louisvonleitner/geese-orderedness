@@ -1,0 +1,16 @@
+[
+    {
+        "name": "boltzmann",
+        "function": [],
+        "matrices": [],
+        "symmetric": true,
+        "color": "green"
+    },
+    {
+        "name": "inverse_exponential_distance",
+        "function": [],
+        "matrices": [],
+        "symmetric": true,
+        "color": "green"
+    }
+]

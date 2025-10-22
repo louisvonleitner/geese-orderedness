@@ -300,6 +300,9 @@ def calculate_metrics(metrics: list, filename: str):
         "zeta",
     ]
 
+    # track H values
+    H_list = []
+
     # creating dataframes from function
     df, individual_geese_trjs, n_trjs = read_trajectory_data(
         filepath, file_column_numbers, file_column_names
@@ -312,30 +315,33 @@ def calculate_metrics(metrics: list, filename: str):
     # starting loop
     for frame in trange(first_frame, last_frame):
 
-        # create adjacency matrix place holders for every metric
-        for metric in metrics:
-            metric["matrices"].append(np.zeros((n_trjs, n_trjs)))
-
         # get geese in nice dict
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
 
+        n_geese = len(geese)
+
+        # create adjacency matrix place holders for every metric
+        for metric in metrics:
+            metric["matrices"].append(np.zeros((n_geese, n_geese)))
+
         # iterate through geesee and calculate metric matrices
+        i = -1
         for first_goose_index in geese:
 
+            i += 1
             goose_1 = geese[first_goose_index]
 
+            j = -1
             for second_goose_index in geese:
 
+                j += 1
                 goose_2 = geese[second_goose_index]
 
                 if goose_1["trj_id"] == goose_2["trj_id"]:
                     pass
 
                 # if the symmetric value has been computed already
-                elif (
-                    metrics[0]["matrices"][-1][goose_1["trj_id"]][goose_2["trj_id"]]
-                    != 0
-                ):
+                elif metrics[0]["matrices"][-1][i][j] != 0:
                     pass
 
                 # if adjacency_matrix[trj_id][other_trj_id] == 0:
@@ -346,14 +352,10 @@ def calculate_metrics(metrics: list, filename: str):
                         metric_weight = metric["function"](goose_1, goose_2)
 
                         # setting weight in adjacency matrix
-                        metric["matrices"][-1][goose_1["trj_id"]][
-                            goose_2["trj_id"]
-                        ] = metric_weight
+                        metric["matrices"][-1][i][j] = metric_weight
 
                         if metric["symmetric"] == True:
-                            metric["matrices"][-1][goose_2["trj_id"]][
-                                goose_1["trj_id"]
-                            ] = metric_weight
+                            metric["matrices"][-1][j][i] = metric_weight
 
     print(f"Saving metrics...")
 
@@ -406,62 +408,84 @@ metrics.append(boltzmann_metric_dict)
 metrics = []
 
 
-param_list = np.linspace(0.2, 2, 10)
-b_list = np.linspace(0.2, 10, 10)
-c_list = np.linspace(0.2, 10, 10)
-beta_list = np.linspace(0.1, 1, 10)
+def boltzmann_metric(
+    goose_1: dict,
+    goose_2: dict,
+) -> float:
 
-
-for a in param_list:
-
+    a = 1 / 1500
     b = 1
-    c = 1
-    beta = 0.5
+    c = 2
+    beta = 1 / 4
 
-    def boltzmann_metric(
-        goose_1: dict,
-        goose_2: dict,
-    ) -> float:
+    if (
+        goose_1["velocity_norm"] == 0
+        or goose_2["velocity_norm"] == 0
+        or goose_1["acceleration_norm"] == 0
+        or goose_2["acceleration_norm"] == 0
+    ):
+        # cannot compute boltzmann weight -> set to 0
+        return 0.0
 
-        if (
-            goose_1["velocity_norm"] == 0
-            or goose_2["velocity_norm"] == 0
-            or goose_1["acceleration_norm"] == 0
-            or goose_2["acceleration_norm"] == 0
-        ):
-            # cannot compute boltzmann weight -> set to 0
-            return 0
+    # alignments
+    velocity_alignment = np.dot(goose_1["velocity"], goose_2["velocity"])
+    acceleration_alignment = np.dot(goose_1["acceleration"], goose_2["acceleration"])
 
-        # alignments
-        velocity_alignment = np.dot(goose_1["velocity"], goose_2["velocity"])
-        acceleration_alignment = np.dot(
-            goose_1["acceleration"], goose_2["acceleration"]
-        )
+    # norms
+    velocity_norm = goose_1["velocity_norm"] * goose_2["velocity_norm"]
+    acceleration_norm = goose_1["acceleration_norm"] * goose_2["acceleration_norm"]
 
-        # norms
-        velocity_norm = goose_1["velocity_norm"] * goose_2["velocity_norm"]
-        acceleration_norm = goose_2["acceleration_norm"] * goose_2["acceleration_norm"]
+    # factors
+    distance_factor = sum((goose_1["position"] - goose_2["position"]) ** 2)
+    velocity_factor = velocity_alignment / velocity_norm
+    acceleration_factor = acceleration_alignment / acceleration_norm
 
-        # factors
-        distance_factor = sum((goose_1["position"] - goose_2["position"]) ** 2)
-        velocity_factor = velocity_alignment / velocity_norm
-        acceleration_factor = acceleration_alignment / acceleration_norm
+    # boltzmann compute
+    H = a * distance_factor - b * velocity_factor - c * acceleration_factor
 
-        # boltzmann compute
-        H = a * distance_factor - b * velocity_factor - c * acceleration_factor
+    boltzmann_weight = np.exp(-(beta * H))
 
-        boltzmann_weight = np.exp(-(beta * H))
-
-        return boltzmann_weight
-
-    metric = {
-        "name": f"boltzmann a={a}, b={b}, c={c}, beta={beta}",
-        "function": boltzmann_metric,
-        "matrices": [],
-        "symmetric": True,
-        "color": "green",
-    }
-    metrics.append(metric)
+    return boltzmann_weight
 
 
-calculate_metrics(metrics=metrics, filename="20201206-S6F1820E1#3S20")
+def inverse_exponential_distance_metric(
+    goose_1: dict,
+    goose_2: dict,
+) -> float:
+
+    # inverse exponential scalar
+    a = 1 / 5000
+
+    # factor
+    distance_factor = sum((goose_1["position"] - goose_2["position"]) ** 2)
+
+    if distance_factor == 0:
+        raise Exception("Geese are in the same position!")
+
+    # inverse exponential compute
+    H = a * distance_factor
+    weight = np.exp(-H)
+
+    return weight
+
+
+boltzmann_metric_dict = {
+    "name": f"boltzmann",
+    "function": boltzmann_metric,
+    "matrices": [],
+    "symmetric": True,
+    "color": "green",
+}
+metrics.append(boltzmann_metric_dict)
+
+inverse_exponential_distance_metric_dict = {
+    "name": f"inverse_exponential_distance",
+    "function": inverse_exponential_distance_metric,
+    "matrices": [],
+    "symmetric": True,
+    "color": "green",
+}
+metrics.append(inverse_exponential_distance_metric_dict)
+
+
+calculate_metrics(metrics=metrics, filename="20191117-S3F4676E1#1S20")

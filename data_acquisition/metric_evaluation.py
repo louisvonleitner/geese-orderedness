@@ -27,10 +27,8 @@ def calculate_laplacian_matrix(matrix):
     return laplacian, degrees
 
 
-def compute_algebraic_connectivity_and_connected_components(
-    matrix: np.ndarray, tol=1e-12
-) -> (float, int):
-    """compute laplaican matrix and its eigenvalues and its number of connected components"""
+def compute_algebraic_connectivity(matrix: np.ndarray, tol=1e-12) -> float:
+    """compute laplaican matrix and its eigenvalues"""
 
     n = matrix.shape[0]
 
@@ -51,17 +49,13 @@ def compute_algebraic_connectivity_and_connected_components(
     normalized_laplacian = np.nan_to_num(
         normalized_laplacian, nan=0.0, posinf=0.0, neginf=0.0
     )
-    # No. of connected components is the rank of the kernel matrix.
-    # the dimension of the kernel matrix is the dimension of the matrix - its rank
-    laplacian_rank = np.linalg.matrix_rank(laplacian, tol)
-    kernel_rank = n - laplacian_rank
 
     laplacian_eigenvalues_normed = np.linalg.eigvals(normalized_laplacian)
     eigenvalues_sorted = np.sort(laplacian_eigenvalues_normed)
 
     algebraic_connectivity = eigenvalues_sorted[1]
 
-    return algebraic_connectivity, kernel_rank
+    return algebraic_connectivity
 
 
 def read_frames_from_csv(filename):
@@ -134,47 +128,41 @@ def plot_distribution(metric: dict, showing=True, saving=False):
         plt.close()
 
 
-def calculate_matrix_metrics_over_time(metric: dict):
-    matrix_metrics = []
+def calculate_algebraic_connectivity_over_time(metric: dict):
+    algebraic_connectivities = []
     for matrix_index in trange(len(metric["matrices"])):
         matrix = metric["matrices"][matrix_index]
 
-        algebraic_connectivity, kernel_rank = (
-            compute_algebraic_connectivity_and_connected_components(matrix)
-        )
-        data = {
-            "algebraic_connectivity": algebraic_connectivity,
-            "kernel_rank": kernel_rank,
-        }
+        algebraic_connectivity = compute_algebraic_connectivity(matrix)
 
-        matrix_metrics.append(data)
+        algebraic_connectivities.append(algebraic_connectivity)
 
-    metric["matrix_metrics"] = matrix_metrics
+    metric["algebraic_connectivities"] = algebraic_connectivities
 
-    return matrix_metrics
+    return algebraic_connectivities
 
 
-def plot_matrix_metrics(metric: dict, showing=True, saving=False):
+def plot_algebraic_connectivities(metrics: list, showing=True, saving=False):
 
-    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    fig, ax = plt.subplots(1, len(metrics), figsize=(10, 4))
 
     frames = [i for i in range(len(metric["matrices"]))]
 
-    data_points = ["algebraic_connectivity", "kernel_rank"]
+    data_points = ["boltzmann", "inverse exponential distance"]
 
-    for j in range(2):
+    for j in range(len(metrics)):
         plot_axis = ax[j]
 
         sns.lineplot(
             x=frames,
-            y=[data[data_points[j]] for data in metric["matrix_metrics"]],
+            y=metrics[j]["algebraic_connectivities"],
             ax=plot_axis,
             color=metric["color"],
         )
 
-        plot_axis.set_title(f"""{metric['name']} {data_points[j]} over time""")
+        plot_axis.set_title(f"""{metric['name']} over time""")
         plot_axis.set_xlabel(f"""frame""")
-        plot_axis.set_ylabel(f"""{metric['name']} {data_points[j]}""")
+        plot_axis.set_ylabel(f"""{metric['name']}""")
         plot_axis.grid(color="lightgrey")
 
     plt.tight_layout()
@@ -185,12 +173,12 @@ def plot_matrix_metrics(metric: dict, showing=True, saving=False):
     if saving == True:
         os.makedirs(
             os.path.dirname(
-                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_matrix_metrics.png"
+                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_algebraic_connectivity.png"
             ),
             exist_ok=True,
         )
         plt.savefig(
-            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_matrix_metrics.png"
+            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_algebraic_connectivity.png"
         )
         plt.close()
 
@@ -206,16 +194,12 @@ def load_metrics(filename):
     return metrics
 
 
-filename = "20201206-S6F1820E1#3S20"
+filename = "20191117-S3F4676E1#1S20"
 
 metrics = load_metrics(filename)
 metrics = read_metric_matrices(metrics, filename)
 
 for metric in metrics:
-    calculate_matrix_metrics_over_time(metric)
+    calculate_algebraic_connectivity_over_time(metric)
 
-for metric in metrics:
-    plot_distribution(metric, showing=False, saving=True)
-
-for metric in metrics:
-    plot_matrix_metrics(metric, showing=False, saving=True)
+plot_algebraic_connectivities(metrics, showing=False, saving=True)
