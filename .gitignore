@@ -3,3 +3,6 @@
 
 # ignore csv files
 *.csv
+
+# ignore trajectory visualization files
+trajectory_visualization/
