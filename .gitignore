@@ -1,2 +1,5 @@
 # ignore all videos
 *.mp4
+
+# ignore csv files
+*.csv
