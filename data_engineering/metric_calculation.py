@@ -368,42 +368,6 @@ def calculate_metrics(metrics: list, filename: str):
     return metrics
 
 
-"""
-# define metrics
-metrics = []
-
-# distance metric
-distance_metric_dict = {
-    "name": "distance",
-    "function": distance_metric,
-    "matrices": [],
-    "symmetric": True,
-    "color": "blue",
-}
-metrics.append(distance_metric_dict)
-
-# clusteriness metric
-clusteriness_metric_dict = {
-    "name": "clusteriness",
-    "function": clusteriness_metric,
-    "matrices": [],
-    "symmetric": True,
-    "color": "yellow",
-}
-metrics.append(clusteriness_metric_dict)
-
-# boltzmann metric
-boltzmann_metric_dict = {
-    "name": "boltzmann",
-    "function": boltzmann_metric,
-    "matrices": [],
-    "symmetric": True,
-    "color": "green",
-}
-metrics.append(boltzmann_metric_dict)
-"""
-
-
 # define metrics
 metrics = []
 
