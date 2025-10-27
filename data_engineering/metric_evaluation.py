@@ -53,6 +53,9 @@ def compute_algebraic_connectivity(matrix: np.ndarray, tol=1e-12) -> float:
     laplacian_eigenvalues_normed = np.linalg.eigvals(normalized_laplacian)
     eigenvalues_sorted = np.sort(laplacian_eigenvalues_normed)
 
+    if n <= 2:
+        return eigenvalues_sorted[0]
+
     algebraic_connectivity = eigenvalues_sorted[1]
 
     return algebraic_connectivity
@@ -62,7 +65,7 @@ def read_frames_from_csv(filename):
     frames = []
     current_frame = []
 
-    with open(filename, "r", newline="") as f:
+    with open(f"data/trajectory_data/{filename}.trj", "r", newline="") as f:
         reader = csv.reader(f)
         for row in reader:
             if not row:  # Blank row signals new frame
@@ -82,27 +85,23 @@ def read_frames_from_csv(filename):
 def read_metric_matrices(metrics: list, filename: str):
 
     for metric in metrics:
-        filepath = f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/{metric["name"]}_matrices.csv"
-        matrices = read_frames_from_csv(filepath)
+        matrices = read_frames_from_csv(filename)
         metric["matrices"] = matrices
 
     return metrics
 
 
-def plot_distribution(metric: dict, showing=True, saving=False):
+def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
 
+    fig = plt.figure(figsize=(8, 5))
     all_values = np.concatenate([m.ravel() for m in metric["matrices"]])
     # ignoring 0 values
     all_values = all_values[all_values > 0]
-    mask = np.isfinite(all_values)
-    print(np.any(~mask))
-    print("NaNs:", np.isnan(all_values).sum())
-    print("Infs:", np.isinf(all_values).sum())
     all_values = all_values[np.isfinite(all_values)]
-    threshold = np.percentile(all_values, 80)
-    all_values = all_values[all_values <= threshold]
+    # threshold = np.percentile(all_values, 80)
+    # all_values = all_values[all_values <= threshold]
 
-    counts, bins = np.histogram(all_values, bins=200)
+    counts, bins = np.histogram(all_values, bins=100)
 
     sns.lineplot(x=bins[:-1], y=counts, color=metric["color"])
 
@@ -117,20 +116,16 @@ def plot_distribution(metric: dict, showing=True, saving=False):
 
     if saving == True:
         os.makedirs(
-            os.path.dirname(
-                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_distribution.png"
-            ),
+            os.path.dirname(f"data/{filename}/figs/{metric["name"]}_distribution.png"),
             exist_ok=True,
         )
-        plt.savefig(
-            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_distribution.png"
-        )
+        plt.savefig(f"data/{filename}/figs/{metric['name']}_distribution.png")
         plt.close()
 
 
 def calculate_algebraic_connectivity_over_time(metric: dict):
     algebraic_connectivities = []
-    for matrix_index in trange(len(metric["matrices"])):
+    for matrix_index in range(len(metric["matrices"])):
         matrix = metric["matrices"][matrix_index]
 
         algebraic_connectivity = compute_algebraic_connectivity(matrix)
@@ -142,20 +137,22 @@ def calculate_algebraic_connectivity_over_time(metric: dict):
     return algebraic_connectivities
 
 
-def plot_algebraic_connectivities(metrics: list, showing=True, saving=False):
+def plot_algebraic_connectivities(
+    metrics: list, filename: str, showing=True, saving=False
+):
 
     fig, ax = plt.subplots(1, len(metrics), figsize=(10, 4))
 
-    frames = [i for i in range(len(metric["matrices"]))]
+    frames = [i for i in range(len(metrics[0]["matrices"]))]
 
     data_points = ["boltzmann", "inverse exponential distance"]
 
     for j in range(len(metrics)):
+        metric = metrics[j]
         plot_axis = ax[j]
-
         sns.lineplot(
-            x=frames,
-            y=metrics[j]["algebraic_connectivities"],
+            x=np.array(frames),
+            y=np.array(metric["algebraic_connectivities"]),
             ax=plot_axis,
             color=metric["color"],
         )
@@ -173,33 +170,20 @@ def plot_algebraic_connectivities(metrics: list, showing=True, saving=False):
     if saving == True:
         os.makedirs(
             os.path.dirname(
-                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric["name"]}_algebraic_connectivity.png"
+                f"data/{filename}/figs/{metric["name"]}_algebraic_connectivity.png"
             ),
             exist_ok=True,
         )
-        plt.savefig(
-            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/figs/{metric['name']}_algebraic_connectivity.png"
-        )
+        plt.savefig(f"data/{filename}/figs/{metric['name']}_algebraic_connectivity.png")
         plt.close()
 
 
 def load_metrics(filename):
     with open(
-        f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/metrics.json",
+        f"data/{filename}/metrics.json",
         "r",
         encoding="utf-8",
     ) as f:
         metrics = json.load(f)
 
     return metrics
-
-
-filename = "20191117-S3F4676E1#1S20"
-
-metrics = load_metrics(filename)
-metrics = read_metric_matrices(metrics, filename)
-
-for metric in metrics:
-    calculate_algebraic_connectivity_over_time(metric)
-
-plot_algebraic_connectivities(metrics, showing=False, saving=True)

@@ -4,5 +4,5 @@
 # ignore csv files
 *.csv
 
-# ignore trajectory visualization files
-trajectory_visualization/
+# ignore the data bcs it's too big
+data/

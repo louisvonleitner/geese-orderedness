@@ -1,22 +1,19 @@
 import numpy as np
 import pandas as pd
 from tqdm import trange
-
-import matplotlib.pyplot as plt
+import os
 
 # project's own imports
+from data_engineering.run_analysis import trajectory_analysis
 from data_engineering.metric_calculation import (
-    calculate_metrics,
     boltzmann_metric,
     inverse_exponential_distance_metric,
 )
-from data_engineering.graph_theory import (
-    compute_algebraic_connectivity,
-)
-from data_engineering.metric_evaluation import (
-    load_metrics,
-    calculate_algebraic_connectivity_over_time,
-)
+
+
+# ===================================================================================================
+folder_path = "data/trajectory_data"
+# ===================================================================================================
 
 # define metrics
 metrics = []
@@ -39,18 +36,16 @@ inverse_exponential_distance_metric_dict = {
 }
 metrics.append(inverse_exponential_distance_metric_dict)
 
+amount_of_analysises = len(os.listdir(folder_path)) - 1
 
-# ===================================================================================================
-filename = "20201206-S6F1820E1#3S20"
-# ===================================================================================================
+i = 0
+for filename in os.listdir(folder_path):
+    i += 1
 
-# run metric computation
-metrics = calculate_metrics(metrics=metrics, filename=filename)
+    print(f"Starting with analysis {i} / {amount_of_analysises}")
 
-# run matrix metric computation on adjacency matrices
-for metric in metrics:
-    calculate_algebraic_connectivity_over_time(metric)
+    if filename.endswith(".trj"):
+        filename = os.path.splitext(filename)[0]
 
-# ===================================================================================================
-# ALL DATA HAS BEEN ACQUIRED, NOW JUST PLOTTING
-# ===================================================================================================
+        # launch analysis
+        trajectory_analysis(filename, metrics)

@@ -8,13 +8,15 @@ import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from data_engineering.clean_trajectory import clean_data
+
 
 def read_trajectory_data(filename, column_numbers, column_names):
     """Read data from file into a pandas dataframe and return this dataframe"""
 
     # dataframe including all trajectories
     df = pd.read_csv(
-        filename,
+        f"data/trajectory_data/{filename}.trj",
         sep="\s+",
         usecols=column_numbers,
         names=column_names,
@@ -24,7 +26,7 @@ def read_trajectory_data(filename, column_numbers, column_names):
     df["trj_id"] = df["trj_id"].astype(int)
 
     # get number of trajectories
-    n_trjs = int(df["trj_id"].max()) + 1
+    n_trjs = len(df["trj_id"].unique())
 
     # list of dataframes, where one dataframe holds exactly one trajectory
     individual_geese_trjs = [group_df for trj_id, group_df in df.groupby("trj_id")]
@@ -181,46 +183,6 @@ def clusteriness_metric(
     return clusteriness
 
 
-def boltzmann_metric(
-    goose_1: dict,
-    goose_2: dict,
-) -> float:
-
-    beta = 0.5
-    a = 1
-    b = 1
-    c = 1
-
-    if (
-        goose_1["velocity_norm"] == 0
-        or goose_2["velocity_norm"] == 0
-        or goose_1["acceleration_norm"] == 0
-        or goose_2["acceleration_norm"] == 0
-    ):
-        # cannot compute boltzmann weight -> set to 0
-        return 0
-
-    # alignments
-    velocity_alignment = np.dot(goose_1["velocity"], goose_2["velocity"])
-    acceleration_alignment = np.dot(goose_1["acceleration"], goose_2["acceleration"])
-
-    # norms
-    velocity_norm = goose_1["velocity_norm"] * goose_2["velocity_norm"]
-    acceleration_norm = goose_2["acceleration_norm"] * goose_2["acceleration_norm"]
-
-    # factors
-    distance_factor = sum((goose_1["position"] - goose_2["position"]) ** 2)
-    velocity_factor = velocity_alignment / velocity_norm
-    acceleration_factor = acceleration_alignment / acceleration_norm
-
-    # boltzmann compute
-    H = a * distance_factor - b * velocity_factor - c * acceleration_factor
-
-    boltzmann_weight = np.exp(-(beta * H))
-
-    return boltzmann_weight
-
-
 def distance_metric(
     goose_1: dict,
     goose_2: dict,
@@ -230,18 +192,64 @@ def distance_metric(
     return distance
 
 
-def save_metric_output(metrics: list, filename: str):
+def calculate_entropy(geese: dict) -> float:
+
+    # read from distance_distribution data chart
+    # might need different normalization method
+    max_distance = 115
+
+    n = len(geese)
+
+    distance_weight = 1
+    velocity_weight = 1
+    acceleration_weight = 1
+
+    geese_positions = [geese[trj_id]["position"] for trj_id in geese]
+    normed_velocities = [
+        geese[trj_id]["velocity"] / np.linalg.norm(geese[trj_id]["velocity"])
+        for trj_id in geese
+    ]
+    normed_accelerations = [
+        geese[trj_id]["acceleration"] / np.linalg.norm(geese[trj_id]["acceleration"])
+        for trj_id in geese
+    ]
+
+    # center of locations
+    mu = np.mean(geese_positions)
+
+    distances = np.linalg.norm(geese_positions - mu)
+
+    # deviation from center
+    distance_spread = np.std(distances)
+
+    # velocity alignment
+    vel_align = np.mean(normed_velocities)
+    vel_spread = 1 - vel_align
+
+    # acceleration alignment
+    acc_align = np.mean(normed_accelerations)
+    acc_spread = 1 - acc_align
+
+    # compute normalized entropy
+    entropy = (
+        distance_weight * distance_spread
+        + velocity_weight * vel_spread
+        + acceleration_weight * acc_spread
+    ) / (distance_weight + velocity_weight + acceleration_weight)
+
+    return entropy
+
+
+def save_metric_output(metrics: list, entropies: list, filename: str):
     # make sure folder exists
     for metric in metrics:
         os.makedirs(
-            os.path.dirname(
-                f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/{metric["name"]}_matrices.csv"
-            ),
+            os.path.dirname(f"data/{filename}/{metric["name"]}_matrices.csv"),
             exist_ok=True,
         )
 
         with open(
-            f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/{metric["name"]}_matrices.csv",
+            f"data/{filename}/{metric["name"]}_matrices.csv",
             "w",
             newline="",
         ) as f:
@@ -250,17 +258,42 @@ def save_metric_output(metrics: list, filename: str):
                 writer.writerows(matrix)
                 writer.writerow([])
 
-    # save metrics used
+    matrices = {}
+    functions = {}
+
+    # keep track of metrics to reassign them later
     for metric in metrics:
+        matrices[metric["name"]] = metric["matrices"]
+        functions[metric["name"]] = metric["function"]
+
+        # make empty to save easier
         metric["matrices"] = []
         metric["function"] = []
 
     with open(
-        f"C:/Python Projects/tohoku_university/geese_project/data/{filename}/metrics.json",
+        f"data/{filename}/metrics.json",
         "w",
         encoding="utf-8",
     ) as f:
         json.dump(metrics, f, ensure_ascii=False, indent=4)
+
+    # reassign metrics
+    for metric in metrics:
+        metric["matrices"] = matrices[metric["name"]]
+        metric["function"] = functions[metric["name"]]
+
+    # keep track of entropy
+    os.makedirs(
+        os.path.dirname(f"data/{filename}/{metric["name"]}_entropies.csv"),
+        exist_ok=True,
+    )
+
+    with open(
+        f"data/{filename}/{metric["name"]}_entropies.csv",
+        "w",
+        newline="",
+    ) as f:
+        json.dump(entropies, f, ensure_ascii=False, indent=4)
 
 
 def calculate_metrics(metrics: list, filename: str):
@@ -283,10 +316,9 @@ def calculate_metrics(metrics: list, filename: str):
         "eta",
         "zeta",
     ]
-    filepath = f"C:/Python Projects/tohoku_university/geese_project/data/{filename}.trj"
     # =====================================================================================================
 
-    # the column names of data being used
+    # the column names of data being used for actual metrics and plotting
     column_names = [
         "trj_id",
         "xpos",
@@ -300,17 +332,29 @@ def calculate_metrics(metrics: list, filename: str):
         "zeta",
     ]
 
-    # track H values
-    H_list = []
-
     # creating dataframes from function
     df, individual_geese_trjs, n_trjs = read_trajectory_data(
-        filepath, file_column_numbers, file_column_names
+        filename, file_column_numbers, file_column_names
     )
+
+    print(f"Cleaning data...")
+    df, individual_geese_trjs, n_trjs = clean_data(df, individual_geese_trjs)
+
+    # abort process
+    if n_trjs == 0:
+        print(f"No suitable trajectories!")
+        return None, []
+
+    print(f"Data Cleaned!")
+
+    print(f"Computing metrics between birds...")
 
     # defining loop length
     first_frame = int(df["frame"].min())
     last_frame = int(df["frame"].max())
+
+    # entropy list
+    entropies = []
 
     # starting loop
     for frame in trange(first_frame, last_frame):
@@ -319,6 +363,10 @@ def calculate_metrics(metrics: list, filename: str):
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
 
         n_geese = len(geese)
+
+        # track entropy
+        entropy = calculate_entropy(geese)
+        entropies.append(entropy)
 
         # create adjacency matrix place holders for every metric
         for metric in metrics:
@@ -360,12 +408,10 @@ def calculate_metrics(metrics: list, filename: str):
     print(f"Saving metrics...")
 
     # save matrices in files
-    save_metric_output(metrics, filename)
-
-    print(f"Done!")
+    save_metric_output(metrics, entropy, filename)
 
     # end of metrics calculation
-    return metrics
+    return metrics, entropies
 
 
 # define metrics
@@ -377,10 +423,10 @@ def boltzmann_metric(
     goose_2: dict,
 ) -> float:
 
-    a = 1 / 1500
+    a = 2 * 1 / 2500
     b = 1
-    c = 2
-    beta = 1 / 4
+    c = 1
+    beta = 1
 
     if (
         goose_1["velocity_norm"] == 0
@@ -415,13 +461,14 @@ def boltzmann_metric(
 def inverse_exponential_distance_metric(
     goose_1: dict,
     goose_2: dict,
+    alpha=2,
 ) -> float:
 
     # inverse exponential scalar
-    a = 1 / 5000
+    a = 1 / 1600
 
     # factor
-    distance_factor = sum((goose_1["position"] - goose_2["position"]) ** 2)
+    distance_factor = sum((goose_1["position"] - goose_2["position"]) ** alpha)
 
     if distance_factor == 0:
         raise Exception("Geese are in the same position!")
@@ -432,6 +479,9 @@ def inverse_exponential_distance_metric(
 
     return weight
 
+
+"""
+metrics = []
 
 boltzmann_metric_dict = {
     "name": f"boltzmann",
@@ -450,6 +500,4 @@ inverse_exponential_distance_metric_dict = {
     "color": "green",
 }
 metrics.append(inverse_exponential_distance_metric_dict)
-
-
-calculate_metrics(metrics=metrics, filename="20191117-S3F4676E1#1S20")
+"""
