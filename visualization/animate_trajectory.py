@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import axes3d, Axes3D
 from matplotlib.animation import FFMpegWriter
 from matplotlib.gridspec import GridSpec
+import seaborn as sns
 from tqdm import trange
+import os
 
 from data_engineering.clean_trajectory import clean_data
 
@@ -56,10 +58,111 @@ def get_frame_locations(frame, individual_geese_trjs):
     return locations
 
 
+def plot_distribution(
+    values: list, name: str, filename: str, showing=True, saving=False
+):
+    """Plot the distribution of some values, using a boxplot with KDE"""
+
+    fig = plt.figure(figsize=(8, 5))
+    if isinstance(values, list):
+        # Flatten each entry and concatenate
+        values = np.concatenate([np.ravel(v) for v in values if v is not None])
+    elif isinstance(values, np.ndarray):
+        values = values.ravel()
+    else:
+        # Fallback — try to convert to numpy array and flatten
+        values = np.ravel(values)
+
+    all_values = values.ravel()
+
+    # ignoring 0 values
+    all_values = all_values[all_values > 0]
+    all_values = all_values[np.isfinite(all_values)]
+    # threshold = np.percentile(all_values, 80)
+    # all_values = all_values[all_values <= threshold]
+
+    counts, bins = np.histogram(all_values, bins="scott")
+
+    sns.barplot(x=bins[:-1], y=counts, color="red")
+    sns.lineplot(x=bins[:-1], y=counts, color="blue")
+
+    plt.grid(color="lightgrey")
+
+    # figure prettiness
+    plt.title(f"Distribution of {name} values")
+    plt.xlabel(f"{name}")
+
+    if showing == True:
+        plt.show()
+
+    if saving == True:
+        os.makedirs(
+            os.path.dirname(f"data/{filename}/figs/{name}_distribution.png"),
+            exist_ok=True,
+        )
+        plt.savefig(f"data/{filename}/figs/{name}_distribution.png")
+        plt.close()
+
+
+def plot_metrics_over_time(metrics: list, filename: str, showing=True, saving=False):
+
+    for metric in metrics:
+        if isinstance(metric, list):
+            # Flatten each entry and concatenate
+            metric = np.concatenate([np.ravel(v) for v in values if v is not None])
+        elif isinstance(metric, np.ndarray):
+            metric = metric.ravel()
+        else:
+            # Fallback — try to convert to numpy array and flatten
+            metric = np.ravel(values)
+
+        metric = metric.ravel()
+
+    fig, ax = plt.subplots(1, len(metrics), figsize=(10, 4))
+
+    frames = np.array([i for i in range(len(metrics[0]))])
+
+    metric_names = ["boltzmann algebraic connectivity", "entropy"]
+
+    for j in range(len(metrics)):
+        metric = metrics[j]
+        plot_axis = ax[j]
+        sns.lineplot(
+            x=frames,
+            y=metric,
+            ax=plot_axis,
+            color="green",
+        )
+
+        plot_axis.set_title(f"""{metric_names[j]} over time""")
+        plot_axis.set_xlabel(f"""frame""")
+        plot_axis.set_ylabel(f"""{metric_names[j]}""")
+        plot_axis.grid(color="lightgrey")
+
+    plt.tight_layout()
+
+    if showing == True:
+        plt.show()
+
+    if saving == True:
+        os.makedirs(
+            os.path.dirname(f"data/{filename}/figs/metrics_over_time.png"),
+            exist_ok=True,
+        )
+        plt.savefig(f"data/{filename}/figs/metrics_over_time.png")
+        plt.close()
+
+
 # ==========================================================================================
 # this is the actual animation part. The rest is data managing and loading
 # ==========================================================================================
-def animation(filename: str, metrics: list, camera_elevation=25, camera_rotation=-110):
+def animation(
+    filename: str,
+    metrics: list,
+    entropies: np.ndarray,
+    camera_elevation=25,
+    camera_rotation=-110,
+):
     """make an animation of the birds flying"""
 
     # ======================================================================================
@@ -92,9 +195,18 @@ def animation(filename: str, metrics: list, camera_elevation=25, camera_rotation
     world_maximums = df[["xpos", "ypos", "zpos"]].max()
     world_minimums = df[["xpos", "ypos", "zpos"]].min()
 
-    # defining movie length
+    # defining loop length as the middle 75%
     first_frame = int(df["frame"].min())
     last_frame = int(df["frame"].max())
+    length = last_frame - first_frame
+
+    buffer_length = length * 0.125
+
+    first_frame += buffer_length
+    last_frame -= buffer_length
+
+    first_frame = int(first_frame)
+    last_frame = int(last_frame)
 
     # ======================================================================================
     # animation settings
@@ -113,7 +225,6 @@ def animation(filename: str, metrics: list, camera_elevation=25, camera_rotation
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.set_zlabel("z")
-    ax.set_aspect("equal")
     plt.grid(True)
 
     ax.set_title(f"""frame:   """)
@@ -122,9 +233,11 @@ def animation(filename: str, metrics: list, camera_elevation=25, camera_rotation
     if len(metrics) != 2:
         raise Exception("More than 2 metrics, but 2 expected!")
 
+    metric_names = ["boltzmann algebraic connectivity", "entropy"]
+
     # plot first metric
     ax_metric1 = fig.add_subplot(gs[0, 1])
-    metric1 = metrics[0]["algebraic_connectivities"]
+    metric1 = metrics[0]
     ax_metric1.set_xlim(0, last_frame - first_frame)
     ax_metric1.set_ylim(0, 2)
     ax_metric1.grid("lightgrey")
@@ -133,11 +246,11 @@ def animation(filename: str, metrics: list, camera_elevation=25, camera_rotation
 
     # plot second metric
     ax_metric2 = fig.add_subplot(gs[1, 1])
-    metric2 = metrics[1]["algebraic_connectivities"]
+    metric2 = metrics[1]
     ax_metric2.set_xlim(0, last_frame - first_frame)
-    ax_metric2.set_ylim(0, 2)
+    ax_metric2.set_ylim(0, 1)
     ax_metric2.grid("lightgrey")
-    ax_metric2.set_title("inverse distance metric")
+    ax_metric2.set_title("entropy")
     (metric2_plotter,) = ax_metric2.plot([], [], color="blue")
 
     plt.tight_layout()

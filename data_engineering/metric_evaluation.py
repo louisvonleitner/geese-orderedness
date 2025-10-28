@@ -91,38 +91,6 @@ def read_metric_matrices(metrics: list, filename: str):
     return metrics
 
 
-def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
-
-    fig = plt.figure(figsize=(8, 5))
-    all_values = np.concatenate([m.ravel() for m in metric["matrices"]])
-    # ignoring 0 values
-    all_values = all_values[all_values > 0]
-    all_values = all_values[np.isfinite(all_values)]
-    # threshold = np.percentile(all_values, 80)
-    # all_values = all_values[all_values <= threshold]
-
-    counts, bins = np.histogram(all_values, bins=100)
-
-    sns.lineplot(x=bins[:-1], y=counts, color=metric["color"])
-
-    plt.grid(color="lightgrey")
-
-    # figure prettiness
-    plt.title(f"{metric["name"]} Distribution")
-    plt.xlabel(f"{metric["name"]}")
-
-    if showing == True:
-        plt.show()
-
-    if saving == True:
-        os.makedirs(
-            os.path.dirname(f"data/{filename}/figs/{metric["name"]}_distribution.png"),
-            exist_ok=True,
-        )
-        plt.savefig(f"data/{filename}/figs/{metric['name']}_distribution.png")
-        plt.close()
-
-
 def calculate_algebraic_connectivity_over_time(metric: dict):
     algebraic_connectivities = []
     for matrix_index in range(len(metric["matrices"])):
@@ -132,50 +100,9 @@ def calculate_algebraic_connectivity_over_time(metric: dict):
 
         algebraic_connectivities.append(algebraic_connectivity)
 
-    metric["algebraic_connectivities"] = algebraic_connectivities
+    metric["algebraic_connectivities"] = np.array(algebraic_connectivities)
 
-    return algebraic_connectivities
-
-
-def plot_algebraic_connectivities(
-    metrics: list, filename: str, showing=True, saving=False
-):
-
-    fig, ax = plt.subplots(1, len(metrics), figsize=(10, 4))
-
-    frames = [i for i in range(len(metrics[0]["matrices"]))]
-
-    data_points = ["boltzmann", "inverse exponential distance"]
-
-    for j in range(len(metrics)):
-        metric = metrics[j]
-        plot_axis = ax[j]
-        sns.lineplot(
-            x=np.array(frames),
-            y=np.array(metric["algebraic_connectivities"]),
-            ax=plot_axis,
-            color=metric["color"],
-        )
-
-        plot_axis.set_title(f"""{metric['name']} over time""")
-        plot_axis.set_xlabel(f"""frame""")
-        plot_axis.set_ylabel(f"""{metric['name']}""")
-        plot_axis.grid(color="lightgrey")
-
-    plt.tight_layout()
-
-    if showing == True:
-        plt.show()
-
-    if saving == True:
-        os.makedirs(
-            os.path.dirname(
-                f"data/{filename}/figs/{metric["name"]}_algebraic_connectivity.png"
-            ),
-            exist_ok=True,
-        )
-        plt.savefig(f"data/{filename}/figs/{metric['name']}_algebraic_connectivity.png")
-        plt.close()
+    return np.array(algebraic_connectivities)
 
 
 def load_metrics(filename):

@@ -11,13 +11,15 @@ from data_engineering.metric_calculation import (
 )
 from data_engineering.metric_evaluation import (
     calculate_algebraic_connectivity_over_time,
-    plot_algebraic_connectivities,
-    plot_distribution,
 )
-from visualization.animate_trajectory import animation
+from visualization.animate_trajectory import (
+    animation,
+    plot_distribution,
+    plot_metrics_over_time,
+)
 
 
-def trajectory_analysis(filename: str, metrics: dict):
+def trajectory_analysis(filename: str, metrics: list):
 
     if len(metrics) != 2:
         raise Exception("More or less than 2 metrics given, but 2 expected!")
@@ -38,25 +40,35 @@ def trajectory_analysis(filename: str, metrics: dict):
             metric
         )
 
-        plot_distribution(metric, filename, showing=False, saving=True)
-
     print(f"Done!")
 
-    print(f"Saving Matrix Metrics Graphs...")
-    plot_algebraic_connectivities(metrics, filename, showing=False, saving=True)
-    print(f"Done!")
+    # print(f"Saving Matrix Metrics Graphs...")
+    # plot_algebraic_connectivities(metrics, filename, showing=False, saving=True)
+    # print(f"Done!")
 
-    fig = plt.figure(figsize=(6, 6))
+    metrics = [metrics[0], np.array(entropies)]
 
-    plt.plot(entropies)
-    plt.savefig(f"data/{filename}/figs/entropies.png")
-    plt.close()
+    # saving plots
+    print("Saving plots...")
+    plot_distribution(
+        metrics[0]["matrices"],
+        "boltzmann algebraic connectivity",
+        filename,
+        showing=False,
+        saving=True,
+    )
+    plot_distribution(metrics[1], "entropy", filename, showing=False, saving=True)
+
+    metrics[0] = metrics[0]["algebraic_connectivities"]
+    plot_metrics_over_time(metrics, filename, showing=False, saving=True)
+
+    print("Done!")
 
     # ===================================================================================================
     # ALL DATA HAS BEEN ACQUIRED, NOW JUST PLOTTING
     # ===================================================================================================
 
     print(f"Generating animation...")
-    animation(filename, metrics)
+    animation(filename, metrics, entropies)
 
     print(f"Finished the whole process for file {filename}")

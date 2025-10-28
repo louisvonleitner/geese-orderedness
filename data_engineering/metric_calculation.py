@@ -63,35 +63,30 @@ def get_frame_geese(
     # array of geese indexed by trj_id
     geese = {}
 
-    if type(locations) == list:
-        location_plotter = ax.scatter([], [], [], color="red")
-    else:
-        # iterate through geese and collect them in a dict
-        for index, data in locations.iterrows():
-            trj_id, xpos, ypos, zpos, xvel, yvel, zvel, xi, eta, zeta = data[
-                column_names
-            ]
+    # iterate through geese and collect them in a dict
+    for index, data in locations.iterrows():
+        trj_id, xpos, ypos, zpos, xvel, yvel, zvel, xi, eta, zeta = data[column_names]
 
-            # structured data
-            trj_id = int(trj_id)
-            position = np.array([xpos, ypos, zpos])
-            velocity = np.array([xvel, yvel, zvel])
+        # structured data
+        trj_id = int(trj_id)
+        position = np.array([xpos, ypos, zpos])
+        velocity = np.array([xvel, yvel, zvel])
 
-            # compute cartesian acceleration from directed accelerations
-            acceleration = acceleration_cartesian(velocity, xi, eta, zeta)
+        # compute cartesian acceleration from directed accelerations
+        acceleration = acceleration_cartesian(velocity, xi, eta, zeta)
 
-            # store data in dict
-            goose = {
-                "trj_id": trj_id,
-                "position": position,
-                "velocity": velocity,
-                "velocity_norm": np.linalg.norm(velocity),
-                "acceleration": acceleration,
-                "acceleration_norm": np.linalg.norm(acceleration),
-            }
+        # store data in dict
+        goose = {
+            "trj_id": trj_id,
+            "position": position,
+            "velocity": velocity,
+            "velocity_norm": np.linalg.norm(velocity),
+            "acceleration": acceleration,
+            "acceleration_norm": np.linalg.norm(acceleration),
+        }
 
-            # save in geese dict
-            geese[trj_id] = goose
+        # save in geese dict
+        geese[trj_id] = goose
 
     return geese
 
@@ -196,9 +191,12 @@ def calculate_entropy(geese: dict) -> float:
 
     # read from distance_distribution data chart
     # might need different normalization method
-    max_distance = 115
+    max_distance = 60
 
     n = len(geese)
+
+    if n < 2:
+        return np.nan
 
     distance_weight = 1
     velocity_weight = 1
@@ -206,13 +204,19 @@ def calculate_entropy(geese: dict) -> float:
 
     geese_positions = [geese[trj_id]["position"] for trj_id in geese]
     normed_velocities = [
-        geese[trj_id]["velocity"] / np.linalg.norm(geese[trj_id]["velocity"])
+        geese[trj_id]["velocity"] / geese[trj_id]["velocity_norm"]
         for trj_id in geese
+        if geese[trj_id]["velocity_norm"] != 0
     ]
     normed_accelerations = [
-        geese[trj_id]["acceleration"] / np.linalg.norm(geese[trj_id]["acceleration"])
+        geese[trj_id]["acceleration"] / geese[trj_id]["acceleration_norm"]
         for trj_id in geese
+        if geese[trj_id]["acceleration_norm"] != 0
     ]
+
+    geese_positions = np.array(geese_positions)
+    normed_velocities = np.array(normed_velocities)
+    normed_accelerations = np.array(normed_accelerations)
 
     # center of locations
     mu = np.mean(geese_positions)
@@ -223,11 +227,11 @@ def calculate_entropy(geese: dict) -> float:
     distance_spread = np.std(distances)
 
     # velocity alignment
-    vel_align = np.mean(normed_velocities)
+    vel_align = np.linalg.norm(np.mean(normed_velocities))
     vel_spread = 1 - vel_align
 
     # acceleration alignment
-    acc_align = np.mean(normed_accelerations)
+    acc_align = np.linalg.norm(np.mean(normed_accelerations))
     acc_spread = 1 - acc_align
 
     # compute normalized entropy
@@ -349,9 +353,18 @@ def calculate_metrics(metrics: list, filename: str):
 
     print(f"Computing metrics between birds...")
 
-    # defining loop length
+    # defining loop length as the middle 75%
     first_frame = int(df["frame"].min())
     last_frame = int(df["frame"].max())
+    length = last_frame - first_frame
+
+    buffer_length = length * 0.125
+
+    first_frame += buffer_length
+    last_frame -= buffer_length
+
+    first_frame = int(first_frame)
+    last_frame = int(last_frame)
 
     # entropy list
     entropies = []
