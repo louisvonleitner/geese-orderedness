@@ -277,6 +277,7 @@ def calculate_velocity_alignment(geese: dict) -> tuple:
     )
 
     # TODO: Use normed velocities or full value velocities?
+    # TODO: Use velocity deviation as a metric aswell?
     normed_velocities = np.array(
         [
             geese[trj_id]["velocity"] / geese[trj_id]["velocity_norm"]
