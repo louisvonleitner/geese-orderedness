@@ -73,6 +73,7 @@ def get_frame_geese(
         velocity = np.array([xvel, yvel, zvel])
 
         # compute cartesian acceleration from directed accelerations
+        raw_acceleration = {"xi": xi, "eta": eta, "zeta": zeta}
         acceleration = acceleration_cartesian(velocity, xi, eta, zeta)
 
         # store data in dict
@@ -83,16 +84,13 @@ def get_frame_geese(
             "velocity_norm": np.linalg.norm(velocity),
             "acceleration": acceleration,
             "acceleration_norm": np.linalg.norm(acceleration),
+            "raw_acceleration": raw_acceleration,
         }
 
         # save in geese dict
         geese[trj_id] = goose
 
     return geese
-
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(x))
 
 
 def acceleration_cartesian(
@@ -191,14 +189,17 @@ def calculate_entropy(geese: dict) -> float:
 
     # read from distance_distribution data chart
     # might need different normalization method
-    max_distance = 60
+    max_normal_distance = 180
+
+    # max_normal_distance_spread = 21  # 40 seemed viable before
 
     n = len(geese)
 
     if n < 2:
         return np.nan
 
-    distance_weight = 1
+    positional_weight = 1
+    # distance_spread_weight = 1
     velocity_weight = 1
     acceleration_weight = 1
 
@@ -208,6 +209,7 @@ def calculate_entropy(geese: dict) -> float:
         for trj_id in geese
         if geese[trj_id]["velocity_norm"] != 0
     ]
+
     normed_accelerations = [
         geese[trj_id]["acceleration"] / geese[trj_id]["acceleration_norm"]
         for trj_id in geese
@@ -221,27 +223,120 @@ def calculate_entropy(geese: dict) -> float:
     # center of locations
     mu = np.mean(geese_positions)
 
-    distances = np.linalg.norm(geese_positions - mu)
+    distances = np.linalg.norm(geese_positions - mu, axis=1)
 
     # deviation from center
-    distance_spread = np.std(distances)
+    positional_deviation = np.mean(distances)
+    normed_positional_deviation = positional_deviation / max_normal_distance
+
+    # deviation from average distance to center
+    # distance_spread = np.std(distances)
+    # normed_distance_spread = distance_spread / max_normal_distance_spread
 
     # velocity alignment
-    vel_align = np.linalg.norm(np.mean(normed_velocities))
+    vel_align = np.linalg.norm(np.mean(normed_velocities, axis=0))
     vel_spread = 1 - vel_align
 
     # acceleration alignment
-    acc_align = np.linalg.norm(np.mean(normed_accelerations))
+    acc_align = np.linalg.norm(np.mean(normed_accelerations, axis=0))
     acc_spread = 1 - acc_align
 
     # compute normalized entropy
     entropy = (
-        distance_weight * distance_spread
+        positional_weight * normed_positional_deviation
+        # + distance_spread_weight * normed_distance_spread
         + velocity_weight * vel_spread
         + acceleration_weight * acc_spread
-    ) / (distance_weight + velocity_weight + acceleration_weight)
+    ) / (
+        positional_weight
+        # + distance_spread_weight
+        + velocity_weight
+        + acceleration_weight
+    )
 
     return entropy
+
+
+def calculate_velocity_alignment(geese: dict) -> tuple:
+    """Calculate the velocity alignment of a set of geese
+    return (velocity_alignment, normed_velocity_alignment)"""
+    velocities = np.array(
+        [
+            geese[trj_id]["velocity"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+
+    velocity_lengths = np.array(
+        [
+            geese[trj_id]["velocity_norm"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+
+    # TODO: Use normed velocities or full value velocities?
+    normed_velocities = np.array(
+        [
+            geese[trj_id]["velocity"] / geese[trj_id]["velocity_norm"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+
+    velocity_alignment = np.linalg.norm(np.mean(velocities, axis=0))
+    velocity_alignment = velocity_alignment / np.mean(velocity_lengths)
+    normed_velocity_alignment = np.linalg.norm(np.mean(normed_velocities, axis=0))
+
+    return velocity_alignment, normed_velocity_alignment
+
+
+def calculate_acceleration_deviation(geese: dict):
+    """Calculate the acceleration deviation of a set of geese
+    return (
+    xi_acceleration_deviation,
+    eta_acceleration_deviation,
+    zeta_acceleration_deviation,
+    )
+    """
+
+    # goose['raw_acceleration'] = {xi, eta, zeta}
+
+    xi_accelerations = np.array(
+        [
+            geese[trj_id]["raw_acceleration"]["xi"]
+            for trj_id in geese
+            if geese[trj_id]["raw_acceleration"]["xi"] != 0
+        ]
+    )
+
+    eta_accelerations = np.array(
+        [
+            geese[trj_id]["raw_acceleration"]["eta"]
+            for trj_id in geese
+            if geese[trj_id]["raw_acceleration"]["eta"] != 0
+        ]
+    )
+
+    zeta_accelerations = np.array(
+        [
+            geese[trj_id]["raw_acceleration"]["zeta"]
+            for trj_id in geese
+            if geese[trj_id]["raw_acceleration"]["zeta"] != 0
+        ]
+    )
+
+    # calculate standard deviation from mean acceleration along each axis
+    xi_acceleration_deviation = np.linalg.norm(np.std(xi_accelerations))
+    eta_acceleration_deviation = np.linalg.norm(np.std(eta_accelerations))
+    zeta_acceleration_deviation = np.linalg.norm(np.std(zeta_accelerations))
+
+    return (
+        xi_acceleration_deviation,
+        eta_acceleration_deviation,
+        zeta_acceleration_deviation,
+    )
 
 
 def save_metric_output(metrics: list, entropies: list, filename: str):
