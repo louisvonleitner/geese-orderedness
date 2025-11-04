@@ -60,6 +60,9 @@ def get_frame_geese(
     # update locations of geese and plot them
     locations = get_frame_locations(frame, individual_geese_trjs, column_names)
 
+    if locations == []:
+        return []
+
     # array of geese indexed by trj_id
     geese = {}
 
@@ -257,27 +260,9 @@ def calculate_entropy(geese: dict) -> float:
     return entropy
 
 
-def calculate_velocity_alignment(geese: dict) -> tuple:
-    """Calculate the velocity alignment of a set of geese
-    return (velocity_alignment, normed_velocity_alignment)"""
-    velocities = np.array(
-        [
-            geese[trj_id]["velocity"]
-            for trj_id in geese
-            if geese[trj_id]["velocity_norm"] != 0
-        ]
-    )
-
-    velocity_lengths = np.array(
-        [
-            geese[trj_id]["velocity_norm"]
-            for trj_id in geese
-            if geese[trj_id]["velocity_norm"] != 0
-        ]
-    )
-
-    # TODO: Use normed velocities or full value velocities?
-    # TODO: Use velocity deviation as a metric aswell?
+def calculate_velocity_alignment(geese: dict) -> float:
+    """Calculate the normalized velocity alignment of a set of geese
+    return normed_velocity_alignment"""
     normed_velocities = np.array(
         [
             geese[trj_id]["velocity"] / geese[trj_id]["velocity_norm"]
@@ -286,19 +271,31 @@ def calculate_velocity_alignment(geese: dict) -> tuple:
         ]
     )
 
-    velocity_alignment = np.linalg.norm(np.mean(velocities, axis=0))
-    velocity_alignment = velocity_alignment / np.mean(velocity_lengths)
     normed_velocity_alignment = np.linalg.norm(np.mean(normed_velocities, axis=0))
 
-    return velocity_alignment, normed_velocity_alignment
+    return normed_velocity_alignment
 
 
-def calculate_acceleration_deviation(geese: dict):
-    """Calculate the acceleration deviation of a set of geese
+def calculate_velocity_deviation(geese: dict) -> float:
+    """Calculate the velocity alignment of a set of geese
+    return velocity_alignment"""
+    velocities = np.array(
+        [
+            geese[trj_id]["velocity"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+
+    velocity_deviation = np.linalg.norm(np.std(velocities, axis=0))
+
+    return velocity_deviation
+
+
+def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
+    """Calculate the longitudinal acceleration deviation of a set of geese
     return (
     xi_acceleration_deviation,
-    eta_acceleration_deviation,
-    zeta_acceleration_deviation,
     )
     """
 
@@ -312,6 +309,17 @@ def calculate_acceleration_deviation(geese: dict):
         ]
     )
 
+    # calculate standard deviation from mean acceleration in xi direction
+    xi_acceleration_deviation = np.linalg.norm(np.std(xi_accelerations))
+    return xi_acceleration_deviation
+
+
+def calculate_sidewise_acceleration_deviation(geese: dict) -> float:
+    """Calculate the sidewise acceleration deviation of a set of geese
+    return combined sidewise acceleration deviation
+    """
+
+    # goose['raw_acceleration'] = {xi, eta, zeta}
     eta_accelerations = np.array(
         [
             geese[trj_id]["raw_acceleration"]["eta"]
@@ -329,74 +337,60 @@ def calculate_acceleration_deviation(geese: dict):
     )
 
     # calculate standard deviation from mean acceleration along each axis
-    xi_acceleration_deviation = np.linalg.norm(np.std(xi_accelerations))
     eta_acceleration_deviation = np.linalg.norm(np.std(eta_accelerations))
     zeta_acceleration_deviation = np.linalg.norm(np.std(zeta_accelerations))
 
-    return (
-        xi_acceleration_deviation,
-        eta_acceleration_deviation,
-        zeta_acceleration_deviation,
+    combined_sidewise_acceleration_deviation = (
+        eta_acceleration_deviation + zeta_acceleration_deviation
     )
 
+    return combined_sidewise_acceleration_deviation
 
-def save_metric_output(metrics: list, entropies: list, filename: str):
+
+def save_metric_output(order_metrics: list, filename: str):
+
+    functions = {}
+    values = {}
+
     # make sure folder exists
-    for metric in metrics:
+    for metric in order_metrics:
         os.makedirs(
-            os.path.dirname(f"data/{filename}/{metric["name"]}_matrices.csv"),
+            os.path.dirname(f"data/{filename}/{metric["name"]}_values.csv"),
             exist_ok=True,
         )
 
+        # keep track of metrics to reassign them later
+        functions[metric["name"]] = metric["function"]
+        values[metric["name"]] = metric["values"]
+
+        # write values into csv file
         with open(
-            f"data/{filename}/{metric["name"]}_matrices.csv",
+            f"data/{filename}/{metric["name"]}_values.csv",
             "w",
             newline="",
+            encoding="utf-8",
         ) as f:
             writer = csv.writer(f)
-            for i, matrix in enumerate(metric["matrices"]):
-                writer.writerows(matrix)
-                writer.writerow([])
-
-    matrices = {}
-    functions = {}
-
-    # keep track of metrics to reassign them later
-    for metric in metrics:
-        matrices[metric["name"]] = metric["matrices"]
-        functions[metric["name"]] = metric["function"]
+            writer.writerow(metric["values"])
 
         # make empty to save easier
-        metric["matrices"] = []
-        metric["function"] = []
+        metric["values"] = []
+        metric["function"] = None
 
     with open(
         f"data/{filename}/metrics.json",
         "w",
         encoding="utf-8",
     ) as f:
-        json.dump(metrics, f, ensure_ascii=False, indent=4)
+        json.dump(order_metrics, f, ensure_ascii=False, indent=4)
 
     # reassign metrics
-    for metric in metrics:
-        metric["matrices"] = matrices[metric["name"]]
+    for metric in order_metrics:
         metric["function"] = functions[metric["name"]]
-
-    # keep track of entropy
-    os.makedirs(
-        os.path.dirname(f"data/{filename}/{metric["name"]}_entropies.csv"),
-        exist_ok=True,
-    )
-
-    with open(
-        f"data/{filename}/{metric["name"]}_entropies.csv",
-        "w",
-        newline="",
-    ) as f:
-        json.dump(entropies, f, ensure_ascii=False, indent=4)
+        metric["values"] = values[metric["name"]]
 
 
-def calculate_metrics(metrics: list, filename: str):
+def calculate_metrics(order_metrics: list, filename: str):
     """Calculate the Metrics between birds for every frame in the trajectory data and return the lists of adjacency matrices"""
 
     # ====================================================================================================
@@ -462,21 +456,23 @@ def calculate_metrics(metrics: list, filename: str):
     first_frame = int(first_frame)
     last_frame = int(last_frame)
 
-    # entropy list
-    entropies = []
-
     # starting loop
     for frame in trange(first_frame, last_frame):
 
         # get geese in nice dict
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
 
+        if geese == []:
+            for metric in order_metrics:
+                metric["values"].append(0)
+
         n_geese = len(geese)
 
-        # track entropy
-        entropy = calculate_entropy(geese)
-        entropies.append(entropy)
+        for metric in order_metrics:
+            calculated_metric = metric["function"](geese)
+            metric["values"].append(calculated_metric)
 
+        """
         # create adjacency matrix place holders for every metric
         for metric in metrics:
             metric["matrices"].append(np.zeros((n_geese, n_geese)))
@@ -513,18 +509,15 @@ def calculate_metrics(metrics: list, filename: str):
 
                         if metric["symmetric"] == True:
                             metric["matrices"][-1][j][i] = metric_weight
+        """
 
     print(f"Saving metrics...")
 
     # save matrices in files
-    save_metric_output(metrics, entropy, filename)
+    save_metric_output(order_metrics, filename)
 
     # end of metrics calculation
-    return metrics, entropies
-
-
-# define metrics
-metrics = []
+    return order_metrics
 
 
 def boltzmann_metric(

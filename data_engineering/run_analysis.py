@@ -19,56 +19,52 @@ from visualization.animate_trajectory import (
 )
 
 
-def trajectory_analysis(filename: str, metrics: list):
+def trajectory_analysis(filename: str, order_metrics: list):
 
-    if len(metrics) != 2:
-        raise Exception("More or less than 2 metrics given, but 2 expected!")
+    if len(order_metrics) != 4:
+        raise Exception("More or less than 4 metrics given, but 4 expected!")
     # run metric computation
-    metrics, entropies = calculate_metrics(metrics=metrics, filename=filename)
+    order_metrics = calculate_metrics(order_metrics=order_metrics, filename=filename)
 
     # edge case handling
-    if metrics == None:
+    if order_metrics == None:
         print(f"Aborting process because no suitable trajectories were found.")
         return None
 
     print(f"Done!")
 
+    """
     print(f"Computing Matrix Metrics of adjacency matrices...")
     # run matrix metric computation on adjacency matrices
-    for metric in metrics:
+    for metric in order_metrics:
         metric["algebraic_connectivities"] = calculate_algebraic_connectivity_over_time(
             metric
         )
-
     print(f"Done!")
+    """
 
-    # print(f"Saving Matrix Metrics Graphs...")
-    # plot_algebraic_connectivities(metrics, filename, showing=False, saving=True)
-    # print(f"Done!")
+    for metric in order_metrics:
+        if metric == None:
+            return None
 
-    metrics = [metrics[0], np.array(entropies)]
-
-    # saving plots
     print("Saving plots...")
-    plot_distribution(
-        metrics[0]["matrices"],
-        "boltzmann algebraic connectivity",
-        filename,
-        showing=False,
-        saving=True,
-    )
-    plot_distribution(metrics[1], "entropy", filename, showing=False, saving=True)
+    for metric in order_metrics:
+        plot_distribution(
+            metric,
+            filename,
+            showing=False,
+            saving=True,
+        )
 
-    metrics[0] = metrics[0]["algebraic_connectivities"]
-    plot_metrics_over_time(metrics, filename, showing=False, saving=True)
+    plot_metrics_over_time(order_metrics, filename, showing=False, saving=True)
 
     print("Done!")
 
     # ===================================================================================================
-    # ALL DATA HAS BEEN ACQUIRED, NOW JUST PLOTTING
+    # ALL DATA HAS BEEN ACQUIRED, NOW JUST ANIMATION PLOTTING
     # ===================================================================================================
 
     print(f"Generating animation...")
-    animation(filename, metrics, entropies)
+    animation(filename, order_metrics)
 
     print(f"Finished the whole process for file {filename}")

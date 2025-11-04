@@ -79,10 +79,11 @@ def set_axes_equal(ax):
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
 
-def plot_distribution(
-    values: list, name: str, filename: str, showing=True, saving=False
-):
+def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
     """Plot the distribution of some values, using a boxplot with KDE"""
+
+    values = metric["values"]
+    name = metric["name"]
 
     fig = plt.figure(figsize=(8, 5))
     if isinstance(values, list):
@@ -94,24 +95,37 @@ def plot_distribution(
         # Fallback — try to convert to numpy array and flatten
         values = np.ravel(values)
 
-    all_values = values.ravel()
+    mean = np.mean(values)
+    median = np.median(values)
+    std_dev = np.std(values)
 
-    # ignoring 0 values
-    all_values = all_values[all_values > 0]
-    all_values = all_values[np.isfinite(all_values)]
-    # threshold = np.percentile(all_values, 80)
-    # all_values = all_values[all_values <= threshold]
+    fig = plt.figure(figsize=(8, 6), dpi=300)
 
-    counts, bins = np.histogram(all_values, bins="scott")
+    ax = sns.histplot(values, color="blue", kde=True, zorder=2)
 
-    sns.barplot(x=bins[:-1], y=counts, color="red")
-    sns.lineplot(x=bins[:-1], y=counts, color="blue")
+    for line in ax.lines:
+        line.set_color("crimson")
 
-    plt.grid(color="lightgrey")
+    plt.grid(color="lightgrey", zorder=0)
+
+    ax.axvline(median, color="green", label="median", linestyle="--", zorder=3)
+    ax.axvline(mean, color="orange", label="mean", linestyle="-", zorder=3)
+    ax.axvspan(
+        mean - std_dev,
+        mean + std_dev,
+        color="orange",
+        alpha=0.2,
+        zorder=1,
+        label="std_dev",
+    )
 
     # figure prettiness
     plt.title(f"Distribution of {name} values")
     plt.xlabel(f"{name}")
+    plt.ylabel("count")
+    plt.legend()
+
+    plt.tight_layout()
 
     if showing == True:
         plt.show()
@@ -125,39 +139,36 @@ def plot_distribution(
         plt.close()
 
 
-def plot_metrics_over_time(metrics: list, filename: str, showing=True, saving=False):
+def plot_metrics_over_time(
+    order_metrics: list, filename: str, showing=True, saving=False
+):
 
-    for metric in metrics:
-        if isinstance(metric, list):
-            # Flatten each entry and concatenate
-            metric = np.concatenate([np.ravel(v) for v in values if v is not None])
-        elif isinstance(metric, np.ndarray):
-            metric = metric.ravel()
+    fig, ax = plt.subplots(2, 2, figsize=(10, 4))
+
+    frames = np.array([i for i in range(len(order_metrics[0]["values"]))])
+
+    for metric_id in range(len(order_metrics)):
+
+        i = metric_id % 2
+
+        if metric_id >= 2:
+            j = 1
         else:
-            # Fallback — try to convert to numpy array and flatten
-            metric = np.ravel(values)
+            j = 0
 
-        metric = metric.ravel()
+        metric = order_metrics[metric_id]
 
-    fig, ax = plt.subplots(1, len(metrics), figsize=(10, 4))
-
-    frames = np.array([i for i in range(len(metrics[0]))])
-
-    metric_names = ["boltzmann algebraic connectivity", "entropy"]
-
-    for j in range(len(metrics)):
-        metric = metrics[j]
-        plot_axis = ax[j]
+        plot_axis = ax[i][j]
         sns.lineplot(
             x=frames,
-            y=metric,
+            y=metric["values"],
             ax=plot_axis,
-            color="green",
+            color=metric["color"],
         )
 
-        plot_axis.set_title(f"""{metric_names[j]} over time""")
+        plot_axis.set_title(f"""{metric['name']} over time""")
         plot_axis.set_xlabel(f"""frame""")
-        plot_axis.set_ylabel(f"""{metric_names[j]}""")
+        plot_axis.set_ylabel(f"""{metric['name']}""")
         plot_axis.grid(color="lightgrey")
 
     plt.tight_layout()
@@ -179,8 +190,7 @@ def plot_metrics_over_time(metrics: list, filename: str, showing=True, saving=Fa
 # ==========================================================================================
 def animation(
     filename: str,
-    metrics: list,
-    entropies: np.ndarray,
+    order_metrics: list,
     camera_elevation=25,
     camera_rotation=-110,
 ):
@@ -233,7 +243,10 @@ def animation(
     # animation settings
 
     fig = plt.figure(figsize=(12, 6))
-    gs = GridSpec(2, 2, figure=fig, width_ratios=[2, 1], height_ratios=[1, 1])
+    gs = GridSpec(2, 3, figure=fig, width_ratios=[2, 1, 1], height_ratios=[1, 1])
+
+    # ===========================================================
+    # LEFT SIDE (MAIN ANIMATION)
 
     # main 3D animation plot
     ax = fig.add_subplot(gs[:, 0], projection="3d")
@@ -254,12 +267,46 @@ def animation(
 
     ax.set_title(f"""frame:   """)
 
-    # 2D metric plots on the sicde
-    if len(metrics) != 2:
-        raise Exception("More than 2 metrics, but 2 expected!")
+    # =======================================================
+    # 2D order metric plots on the side
+    plotters = []
+    axes = [
+        fig.add_subplot(gs[0, 1]),
+        fig.add_subplot(gs[0, 2]),
+        fig.add_subplot(gs[1, 1]),
+        fig.add_subplot(gs[1, 2]),
+    ]
 
-    metric_names = ["boltzmann algebraic connectivity", "entropy"]
+    for metric_id, ax_metric in enumerate(axes):
+        if metric_id >= len(order_metrics):
+            raise Exception("More than 4 metrics, but 4 expected!")
 
+        metric = order_metrics[metric_id]
+
+        plotter = sns.lineplot(
+            x=[0],
+            y=[0],
+            ax=ax_metric,
+            color=metric["color"],
+        )
+        plotters.append(plotter.lines[0])
+
+        if metric["value_space"] != []:
+            value_space = metric["value_space"]
+            ax_metric.set_ylim(value_space[0], value_space[1])
+        else:
+            ax_metric.set_ylim(np.min(metric["values"]), np.max(metric["values"]))
+
+        ax_metric.set_xlim(0, last_frame - first_frame)
+
+        ax_metric.set_title(f"{metric['name']}")
+        ax_metric.set_xlabel("frame")
+        ax_metric.set_ylabel(metric["name"])
+        ax_metric.grid(color="lightgrey")
+
+    plt.tight_layout()
+
+    """
     # plot first metric
     ax_metric1 = fig.add_subplot(gs[0, 1])
     metric1 = metrics[0]
@@ -279,6 +326,7 @@ def animation(
     (metric2_plotter,) = ax_metric2.plot([], [], color="blue")
 
     plt.tight_layout()
+    """
 
     # =====================================================================================
 
@@ -298,14 +346,11 @@ def animation(
 
             j += 1
 
-            metric1_plotter.set_data(
-                [i for i in range(j)],
-                [metric1[i] for i in range(j)],
-            )
-            metric2_plotter.set_data(
-                [i for i in range(j)],
-                [metric2[i] for i in range(j)],
-            )
+            for plotter_id in range(len(plotters)):
+                plotters[plotter_id].set_data(
+                    [i for i in range(j)],
+                    [order_metrics[plotter_id]["values"][i] for i in range(j)],
+                )
 
             # current location
             locations = get_frame_locations(frame, individual_geese_trjs)
