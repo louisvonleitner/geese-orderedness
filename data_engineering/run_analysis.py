@@ -26,6 +26,9 @@ def trajectory_analysis(filename: str, order_metrics: list):
     # run metric computation
     order_metrics = calculate_metrics(order_metrics=order_metrics, filename=filename)
 
+    # for data analysis return and do not plot
+    # return order_metrics
+
     # edge case handling
     if order_metrics == None:
         print(f"Aborting process because no suitable trajectories were found.")

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from tqdm import trange
 import os
+import gc
 
 # project's own imports
 from data_engineering.run_analysis import trajectory_analysis
@@ -32,23 +33,23 @@ for filename in os.listdir(folder_path):
         "function": calculate_velocity_alignment,
         "values": [],
         "color": "lightgreen",
-        "value_space": [0, 1],
+        "value_space": [0.8, 1],
     }
     order_metrics.append(normalized_velocity_alignment_metric)
-    velocity_alignment_metric = {
+    velocity_deviation_metric = {
         "name": "velocity_deviation",
         "function": calculate_velocity_deviation,
         "values": [],
         "color": "green",
-        "value_space": [],
+        "value_space": [0, 2.25],
     }
-    order_metrics.append(velocity_alignment_metric)
+    order_metrics.append(velocity_deviation_metric)
     longitudinal_acceleration_metric = {
         "name": "longitudinal_acceleration_deviation",
         "function": calculate_longitudinal_acceleration_deviation,
         "values": [],
         "color": "red",
-        "value_space": [],
+        "value_space": [0, 1.25],
     }
     order_metrics.append(longitudinal_acceleration_metric)
     sidewise_acceleration_metric = {
@@ -56,7 +57,7 @@ for filename in os.listdir(folder_path):
         "function": calculate_sidewise_acceleration_deviation,
         "values": [],
         "color": "crimson",
-        "value_space": [],
+        "value_space": [0, 4],
     }
     order_metrics.append(sidewise_acceleration_metric)
 
@@ -90,3 +91,6 @@ for filename in os.listdir(folder_path):
 
         # launch analysis
         trajectory_analysis(filename, order_metrics)
+
+    plt.close("all")
+    gc.collect()

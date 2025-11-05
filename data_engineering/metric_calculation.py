@@ -60,7 +60,7 @@ def get_frame_geese(
     # update locations of geese and plot them
     locations = get_frame_locations(frame, individual_geese_trjs, column_names)
 
-    if locations == []:
+    if type(locations) == list:
         return []
 
     # array of geese indexed by trj_id
@@ -437,7 +437,7 @@ def calculate_metrics(order_metrics: list, filename: str):
     # abort process
     if n_trjs == 0:
         print(f"No suitable trajectories!")
-        return None, []
+        return None
 
     print(f"Data Cleaned!")
 
