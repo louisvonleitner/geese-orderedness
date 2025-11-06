@@ -3,6 +3,7 @@ import pandas as pd
 from tqdm import trange
 import os
 import gc
+import matplotlib.pyplot as plt
 
 # project's own imports
 from data_engineering.run_analysis import trajectory_analysis

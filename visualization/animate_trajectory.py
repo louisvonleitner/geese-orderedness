@@ -165,6 +165,16 @@ def plot_metrics_over_time(
             ax=plot_axis,
             color=metric["color"],
         )
+        if metric["value_space"] != []:
+            value_space = metric["value_space"]
+            plot_axis.set_ylim(value_space[0], value_space[1])
+            value_space_length = value_space[1] - value_space[0]
+            plot_axis.set_ylim(
+                value_space[0] - 0.1 * value_space_length,
+                value_space[1] + 0.1 * value_space_length,
+            )
+        else:
+            plot_axis.set_ylim(np.min(metric["values"]), np.max(metric["values"]))
 
         plot_axis.set_title(f"""{metric['name']} over time""")
         plot_axis.set_xlabel(f"""frame""")
@@ -293,7 +303,11 @@ def animation(
 
         if metric["value_space"] != []:
             value_space = metric["value_space"]
-            ax_metric.set_ylim(value_space[0], value_space[1])
+            value_space_length = value_space[1] - value_space[0]
+            ax_metric.set_ylim(
+                value_space[0] - 0.1 * value_space_length,
+                value_space[1] + 0.1 * value_space_length,
+            )
         else:
             ax_metric.set_ylim(np.min(metric["values"]), np.max(metric["values"]))
 
@@ -305,28 +319,6 @@ def animation(
         ax_metric.grid(color="lightgrey")
 
     plt.tight_layout()
-
-    """
-    # plot first metric
-    ax_metric1 = fig.add_subplot(gs[0, 1])
-    metric1 = metrics[0]
-    ax_metric1.set_xlim(0, last_frame - first_frame)
-    ax_metric1.set_ylim(0, 2)
-    ax_metric1.grid("lightgrey")
-    ax_metric1.set_title("boltzmann metric")
-    (metric1_plotter,) = ax_metric1.plot([], [], color="green")
-
-    # plot second metric
-    ax_metric2 = fig.add_subplot(gs[1, 1])
-    metric2 = metrics[1]
-    ax_metric2.set_xlim(0, last_frame - first_frame)
-    ax_metric2.set_ylim(0, 1)
-    ax_metric2.grid("lightgrey")
-    ax_metric2.set_title("entropy")
-    (metric2_plotter,) = ax_metric2.plot([], [], color="blue")
-
-    plt.tight_layout()
-    """
 
     # =====================================================================================
 
