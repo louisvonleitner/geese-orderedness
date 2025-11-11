@@ -14,6 +14,7 @@ from data_engineering.metric_calculation import (
     calculate_velocity_alignment,
     calculate_longitudinal_acceleration_deviation,
     calculate_sidewise_acceleration_deviation,
+    calculate_velocity_PCA,
 )
 
 
@@ -27,13 +28,14 @@ i = 0
 for filename in os.listdir(folder_path):
     i += 1
 
+
     order_metrics = []
 
     normalized_velocity_alignment_metric = {
         "name": "normalized_velocity_alignment",
         "function": calculate_velocity_alignment,
         "values": [],
-        "color": "lightgreen",
+        "color": "forestgreen",
         "value_space": [0.8, 1],
     }
     order_metrics.append(normalized_velocity_alignment_metric)
@@ -61,31 +63,18 @@ for filename in os.listdir(folder_path):
         "value_space": [0, 4],
     }
     order_metrics.append(sidewise_acceleration_metric)
-
-    """
-    metrics = []
-
-    boltzmann_metric_dict = {
-        "name": f"boltzmann",
-        "function": boltzmann_metric,
-        "matrices": [],
-        "symmetric": True,
-        "color": "green",
+    # PCA velocity metrics
+    PCA_velocity_metric = {
+        "name": "PCA_velocity_metric",
+        "function": calculate_velocity_PCA,
+        "values": [],
+        "color": "blue",
+        "value_space": [],
     }
-    metrics.append(boltzmann_metric_dict)
-
-    inverse_exponential_distance_metric_dict = {
-        "name": f"inverse_exponential_distance",
-        "function": inverse_exponential_distance_metric,
-        "matrices": [],
-        "symmetric": True,
-        "color": "green",
-    }
-    metrics.append(inverse_exponential_distance_metric_dict)
-    """
+    order_metrics.append(PCA_velocity_metric)
 
     if i <= amount_of_analysises:
-        print(f"Starting with analysis {i} / {amount_of_analysises}")
+        print(f"Starting with analysis {i} / {amount_of_analysises}", flush=True)
 
     if filename.endswith(".trj"):
         filename = os.path.splitext(filename)[0]

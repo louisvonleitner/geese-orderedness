@@ -55,7 +55,16 @@ def get_number_of_geese(foldername):
     return n_trjs
 
 
-features = ["trj_name", "values", "mean", "median", "std_dev", "maximum", "minimum"]
+features = [
+    "trj_name",
+    "n_frames",
+    "values",
+    "mean",
+    "median",
+    "std_dev",
+    "maximum",
+    "minimum",
+]
 
 directory_list = os.listdir(folder_path)
 
@@ -67,6 +76,8 @@ data_metrics = [
     "velocity_deviation",
     "sidewise_acceleration_deviation",
     "longitudinal_acceleration_deviation",
+    "velocity_pca_first_component",
+    "velocity_pca_second_component",
 ]
 metric_dfs = {}
 for metric in data_metrics:
@@ -77,16 +88,31 @@ mean_df = pd.DataFrame(
     columns=[
         "trj_name",
         "n_geese",
+        "n_frames",
         "normalized_velocity_alignment",
+        "normalized_velocity_alignment_std_dev",
         "velocity_deviation",
+        "velocity_deviation_std_dev",
         "sidewise_acceleration_deviation",
+        "sidewise_acceleration_deviation_std_dev",
         "longitudinal_acceleration_deviation",
+        "longitudinal_acceleration_deviation_std_dev",
+        "velocity_pca_first_component",
+        "velocity_pca_first_component_std_dev",
+        "velocity_pca_second_component",
+        "velocity_pca_second_component_std_dev",
     ],
 )
 
 i = 0
 for foldername in directory_list:
-    if foldername != "trajectory_data" and foldername != "NOTES.txt":
+    if (
+        foldername != "trajectory_data"
+        and foldername != "NOTES.txt"
+        and ".csv" not in foldername
+    ):
+        nan_metric = False
+
         i += 1
         print(f"Starting analysis {i}/{amount_of_analysises}")
 
@@ -98,33 +124,44 @@ for foldername in directory_list:
 
         # read data points into numpy arrays and calculate mean and other metrics
         for metric in data_metrics:
-            values = read_metric_csv_into_list(
-                "data/" + foldername + "/" + metric + "_values.csv"
-            )
-            trj_name = foldername
-            values = np.array(values)
-            mean = np.mean(values)
-            median = np.median(values)
-            std_dev = np.std(values)
-            maximum = np.max(values)
-            minimum = np.min(values)
+            if not nan_metric:
+                values = read_metric_csv_into_list(
+                    "data/" + foldername + "/" + metric + "_values.csv"
+                )
+                values = values[~np.isnan(values)]
+                if len(values) == 0:
+                    nan_metric = True
+                    break
 
-            means[metric] = mean
+                else:
+                    trj_name = foldername
+                    values = np.array(values)
+                    mean = np.mean(values)
+                    median = np.median(values)
+                    std_dev = np.std(values)
+                    maximum = np.max(values)
+                    minimum = np.min(values)
 
-            row = {
-                "trj_name": trj_name,
-                "values": values,
-                "mean": mean,
-                "median": median,
-                "std_dev": std_dev,
-                "maximum": maximum,
-                "minimum": minimum,
-            }
-            metric_dfs[metric].loc[len(metric_dfs[metric])] = row
+                    means[metric] = mean
+                    means[f"{metric}_std_dev"] = std_dev
+                    means["n_frames"] = len(values)
 
-        mean_df.loc[len(mean_df)] = means
+                    row = {
+                        "trj_name": trj_name,
+                        "n_frames": len(values),
+                        "values": values,
+                        "mean": mean,
+                        "median": median,
+                        "std_dev": std_dev,
+                        "maximum": maximum,
+                        "minimum": minimum,
+                    }
+                    metric_dfs[metric].loc[len(metric_dfs[metric])] = row
+
+        if not nan_metric:
+            mean_df.loc[len(mean_df)] = means
 
 
-mean_df.to_csv("data/metric_means.csv")
+mean_df.to_csv("data/metric_means.csv", mode="w")
 for metric in data_metrics:
     metric_dfs[metric].to_csv("data/" + metric + "_df.csv")

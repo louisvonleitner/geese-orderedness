@@ -6,16 +6,14 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 from matplotlib.animation import FFMpegWriter
 from matplotlib.gridspec import GridSpec
 import seaborn as sns
-from tqdm import trange
 import os
 
 from data_engineering.clean_trajectory import clean_data
 
 # movie metadata
 # ======================================================================================
-plt.rcParams["animation.ffmpeg_path"] = (
-    "C:/Users/luigi/Downloads/ffmpeg-7.1.1-essentials_build/ffmpeg-7.1.1-essentials_build/bin/ffmpeg.exe"
-)
+plt.rcParams["animation.ffmpeg_path"] = plt.rcParams['animation.ffmpeg_path'] = '/home/louis/bin/ffmpeg'
+
 metadata = dict(title="Movie", artist="LouisvonLeitner")
 writer = FFMpegWriter(fps=60, metadata=metadata)
 # =======================================================================================
@@ -142,6 +140,85 @@ def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
 def plot_metrics_over_time(
     order_metrics: list, filename: str, showing=True, saving=False
 ):
+    """
+    Plots all metrics in a dynamic grid layout that adapts to the number of metrics.
+
+    Parameters
+    ----------
+    order_metrics : list[dict]
+        Each dict must have keys: 'name', 'values', 'color', and optionally 'value_space'
+    filename : str
+        Base name for saving the plot
+    showing : bool
+        Whether to display the plot
+    saving : bool
+        Whether to save the plot to data/{filename}/figs/metrics_over_time.png
+    """
+
+    n_metrics = len(order_metrics)
+    if n_metrics == 0:
+        print("No metrics to plot.")
+        return
+
+    for metric in order_metrics:
+        metric['values'] = np.nan_to_num(metric['values'], nan=0.0)
+
+    # --- determine grid size dynamically ---
+    n_cols = math.ceil(math.sqrt(n_metrics))
+    n_rows = math.ceil(n_metrics / n_cols)
+
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 3 * n_rows))
+    ax = np.array(ax).reshape(-1)  # flatten in case of single row/col
+
+    frames = np.arange(len(order_metrics[0]["values"]))
+
+    # --- plot each metric ---
+    for metric_id, metric in enumerate(order_metrics):
+        plot_axis = ax[metric_id]
+
+        sns.lineplot(
+            x=frames,
+            y=metric["values"],
+            ax=plot_axis,
+            color=metric.get("color", "C0"),
+        )
+
+        # handle value range
+        if metric.get("value_space"):
+            value_space = metric["value_space"]
+            margin = 0.1 * (value_space[1] - value_space[0])
+            plot_axis.set_ylim(value_space[0] - margin, value_space[1] + margin)
+        else:
+            ymin, ymax = np.min(metric["values"]), np.max(metric["values"])
+            margin = 0.1 * (ymax - ymin)
+            plot_axis.set_ylim(ymin - margin, ymax + margin)
+
+        plot_axis.set_title(f"{metric['name']} over time")
+        plot_axis.set_xlabel("Frame")
+        plot_axis.set_ylabel(metric["name"])
+        plot_axis.grid(color="lightgrey")
+
+    # hide any unused subplots
+    for j in range(metric_id + 1, len(ax)):
+        fig.delaxes(ax[j])
+
+    plt.tight_layout()
+
+    # --- display or save ---
+    if showing:
+        plt.show()
+
+    if saving:
+        save_path = f"data/{filename}/figs/metrics_over_time.png"
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+
+
+"""
+def plot_metrics_over_time(
+    order_metrics: list, filename: str, showing=True, saving=False
+):
 
     fig, ax = plt.subplots(2, 2, figsize=(10, 4))
 
@@ -176,9 +253,9 @@ def plot_metrics_over_time(
         else:
             plot_axis.set_ylim(np.min(metric["values"]), np.max(metric["values"]))
 
-        plot_axis.set_title(f"""{metric['name']} over time""")
-        plot_axis.set_xlabel(f"""frame""")
-        plot_axis.set_ylabel(f"""{metric['name']}""")
+        plot_axis.set_title(f"{metric['name']} over time")
+        plot_axis.set_xlabel(f"frame")
+        plot_axis.set_ylabel(f"{metric['name']}")
         plot_axis.grid(color="lightgrey")
 
     plt.tight_layout()
@@ -193,18 +270,208 @@ def plot_metrics_over_time(
         )
         plt.savefig(f"data/{filename}/figs/metrics_over_time.png")
         plt.close()
-
+"""
 
 # ==========================================================================================
 # this is the actual animation part. The rest is data managing and loading
 # ==========================================================================================
+import os
+import math
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from tqdm import trange
+
+
 def animation(
     filename: str,
     order_metrics: list,
     camera_elevation=25,
     camera_rotation=-110,
 ):
-    """make an animation of the birds flying"""
+    """Make an animation of the birds flying, with dynamic metric plots on the right."""
+
+    # ======================================================================================
+    # Gather data for plotting
+    column_numbers = [0, 1, 6, 7, 8, 12, 13, 14, 15]
+    column_names = [
+        "trj_id",
+        "frame",
+        "xpos",
+        "ypos",
+        "zpos",
+        "xvel",
+        "yvel",
+        "zvel",
+        "n",
+    ]
+
+    df, individual_geese_trjs = read_trajectory_data(
+        filename, column_numbers, column_names
+    )
+    df, individual_geese_trjs, n_trjs = clean_data(df, individual_geese_trjs)
+
+    world_maximums = df[["xpos", "ypos", "zpos"]].max()
+    world_minimums = df[["xpos", "ypos", "zpos"]].min()
+
+    first_frame = int(df["frame"].min())
+    last_frame = int(df["frame"].max())
+    length = last_frame - first_frame
+    buffer_length = length * 0.125
+    first_frame += buffer_length
+    last_frame -= buffer_length
+    first_frame, last_frame = int(first_frame), int(last_frame)
+
+    # ======================================================================================
+    # Dynamic layout for animation (left) and metrics (right)
+    n_metrics = len(order_metrics)
+    if n_metrics == 0:
+        print("No metrics to plot.")
+        return
+
+    # Determine metric grid dynamically
+    n_cols = math.ceil(math.sqrt(n_metrics))
+    n_rows = math.ceil(n_metrics / n_cols)
+
+    # Make main figure
+    fig = plt.figure(figsize=(12, max(6, 3 * n_rows)))
+    gs = GridSpec(
+        n_rows,
+        n_cols + 1,
+        figure=fig,
+        width_ratios=[2] + [1] * n_cols,
+        height_ratios=[1] * n_rows,
+    )
+
+    # ======================================================================================
+    # LEFT SIDE (MAIN ANIMATION)
+    ax3d = fig.add_subplot(gs[:, 0], projection="3d")
+    ax3d.view_init(elev=camera_elevation, azim=camera_rotation)
+
+    ax3d.set_xlim(world_minimums["xpos"], world_maximums["xpos"])
+    ax3d.set_ylim(world_minimums["ypos"], world_maximums["ypos"])
+    ax3d.set_zlim(world_minimums["zpos"], world_maximums["zpos"])
+    set_axes_equal(ax3d)
+
+    ax3d.set_xlabel("x")
+    ax3d.set_ylabel("y")
+    ax3d.set_zlabel("z")
+    ax3d.set_title("frame: ")
+    plt.grid(True)
+
+    # ======================================================================================
+    # RIGHT SIDE (Dynamic grid of metrics)
+    frames = np.arange(last_frame - first_frame)
+    plotters = []
+    metric_axes = []
+
+    for i, metric in enumerate(order_metrics):
+        # Convert 1D index to grid position
+        row = i // n_cols
+        col = (i % n_cols) + 1  # +1 because col 0 is 3D plot
+        axm = fig.add_subplot(gs[row, col])
+        metric_axes.append(axm)
+
+        plotter = sns.lineplot(
+            x=[0],
+            y=[0],
+            ax=axm,
+            color=metric.get("color", "C0"),
+        )
+        plotters.append(plotter.lines[0])
+
+        # Y-limits
+        if metric.get("value_space"):
+            lo, hi = metric["value_space"]
+            margin = 0.1 * (hi - lo)
+            axm.set_ylim(lo - margin, hi + margin)
+        else:
+            vals = np.array(metric["values"])
+            lo, hi = np.nanmin(vals), np.nanmax(vals)
+            margin = 0.1 * (hi - lo)
+            axm.set_ylim(lo - margin, hi + margin)
+
+        axm.set_xlim(0, last_frame - first_frame)
+        axm.set_title(metric["name"])
+        axm.set_xlabel("frame")
+        axm.set_ylabel(metric["name"])
+        axm.grid(color="lightgrey")
+
+    # Hide any unused slots in the grid
+    total_slots = n_rows * n_cols
+    if n_metrics < total_slots:
+        for j in range(n_metrics, total_slots):
+            fig.add_subplot(gs[j // n_cols, (j % n_cols) + 1]).set_visible(False)
+
+    plt.tight_layout()
+
+    # ======================================================================================
+    # Set up data structures for the animation
+    historical_flight_paths = {}
+    historical_flight_path_plotters = {}
+    location_plotter = ax3d.scatter([], [], [], color="red")
+
+    # ======================================================================================
+    # Animation writing
+    with writer.saving(fig, f"data/{filename}/flight_animation.mp4", 200):
+        j = -1
+        for frame in range(first_frame, last_frame + 1):
+            j += 1
+
+            # Update each metric line
+            for k, plotter in enumerate(plotters):
+                metric = order_metrics[k]
+                plotter.set_data(
+                    np.arange(j),
+                    metric["values"][:j],
+                )
+
+            # Current locations
+            locations = get_frame_locations(frame, individual_geese_trjs)
+            if isinstance(locations, list):
+                location_plotter._offsets3d = ([], [], [])
+            else:
+                location_plotter._offsets3d = (
+                    locations["xpos"],
+                    locations["ypos"],
+                    locations["zpos"],
+                )
+
+                # Update flight paths
+                for _, col in locations.iterrows():
+                    tid = col["trj_id"]
+                    if tid not in historical_flight_paths:
+                        historical_flight_paths[tid] = {"x": [], "y": [], "z": []}
+                    trj = historical_flight_paths[tid]
+                    trj["x"].append(col["xpos"])
+                    trj["y"].append(col["ypos"])
+                    trj["z"].append(col["zpos"])
+
+                # Draw paths
+                for tid, trj in historical_flight_paths.items():
+                    if tid in historical_flight_path_plotters:
+                        line = historical_flight_path_plotters[tid]
+                        line.set_data(trj["x"], trj["y"])
+                        line.set_3d_properties(trj["z"])
+                    else:
+                        (new_line,) = ax3d.plot3D(
+                            trj["x"], trj["y"], trj["z"], color="blue", linewidth=0.4
+                        )
+                        historical_flight_path_plotters[tid] = new_line
+
+            ax3d.set_title(f"frame: {frame - first_frame}")
+            writer.grab_frame()
+
+
+"""
+def animation(
+    filename: str,
+    order_metrics: list,
+    camera_elevation=25,
+    camera_rotation=-110,
+):
+    """ """make an animation of the birds flying""" """
 
     # ======================================================================================
     # gather data for plotting
@@ -252,6 +519,16 @@ def animation(
     # ======================================================================================
     # animation settings
 
+
+    n_metrics = len(order_metrics)
+    if n_metrics == 0:
+        print("No metrics to plot.")
+        return
+
+    # --- determine grid size dynamically ---
+    n_cols = math.ceil(math.sqrt(n_metrics))
+    n_rows = math.ceil(n_metrics / n_cols)
+
     fig = plt.figure(figsize=(12, 6))
     gs = GridSpec(2, 3, figure=fig, width_ratios=[2, 1, 1], height_ratios=[1, 1])
 
@@ -275,7 +552,7 @@ def animation(
     ax.set_zlabel("z")
     plt.grid(True)
 
-    ax.set_title(f"""frame:   """)
+    ax.set_title(f"frame:   ")
 
     # =======================================================
     # 2D order metric plots on the side
@@ -397,7 +674,9 @@ def animation(
 
                         historical_flight_path_plotters[trj_id] = new_path
 
-            ax.set_title(f"""frame: {frame - first_frame}""")
+            ax.set_title(f"frame: {frame - first_frame}")
 
             # recording state
             writer.grab_frame()
+
+"""

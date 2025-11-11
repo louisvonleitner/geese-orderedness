@@ -19,10 +19,37 @@ from visualization.animate_trajectory import (
 )
 
 
+def extract_submetrics(metrics):
+
+    submetrics = []
+    for metric in metrics:
+        if metric == None:
+            return None
+
+        if type(metric["values"][0]) == tuple:
+            for i in range(len(metric["values"][0])):
+                submetric = metric.copy()
+
+                # check for errors
+                for value in metric['values']:
+                    if type(value) != tuple:
+                        print(f'Value not tuple with value: {value} for metric {metric['name']}')
+
+                values = [j[i] for j in metric["values"]]
+
+                submetric["name"] = metric["name"] + f"_submetric_{i}"
+                submetric["values"] = values
+                submetrics.append(submetric)
+
+            metrics.remove(metric)
+
+    metrics = metrics + submetrics
+
+    return metrics
+
+
 def trajectory_analysis(filename: str, order_metrics: list):
 
-    if len(order_metrics) != 4:
-        raise Exception("More or less than 4 metrics given, but 4 expected!")
     # run metric computation
     order_metrics = calculate_metrics(order_metrics=order_metrics, filename=filename)
 
@@ -31,26 +58,15 @@ def trajectory_analysis(filename: str, order_metrics: list):
 
     # edge case handling
     if order_metrics == None:
-        print(f"Aborting process because no suitable trajectories were found.")
+        print(f"Aborting process because no suitable trajectories were found.", flush=True)
         return None
 
-    print(f"Done!")
+    print(f"Done!", flush=True)
 
-    """
-    print(f"Computing Matrix Metrics of adjacency matrices...")
-    # run matrix metric computation on adjacency matrices
-    for metric in order_metrics:
-        metric["algebraic_connectivities"] = calculate_algebraic_connectivity_over_time(
-            metric
-        )
-    print(f"Done!")
-    """
+    print("Extracting submetrics...", flush=True)
+    order_metrics = extract_submetrics(order_metrics)
 
-    for metric in order_metrics:
-        if metric == None:
-            return None
-
-    print("Saving plots...")
+    print("Saving plots...", flush=True)
     for metric in order_metrics:
         plot_distribution(
             metric,
@@ -61,13 +77,13 @@ def trajectory_analysis(filename: str, order_metrics: list):
 
     plot_metrics_over_time(order_metrics, filename, showing=False, saving=True)
 
-    print("Done!")
+    print("Done!", flush=True)
 
     # ===================================================================================================
     # ALL DATA HAS BEEN ACQUIRED, NOW JUST ANIMATION PLOTTING
     # ===================================================================================================
 
-    print(f"Generating animation...")
+    print(f"Generating animation...", flush=True)
     animation(filename, order_metrics)
 
-    print(f"Finished the whole process for file {filename}")
+    print(f"Finished the whole process for file {filename}", flush=True)

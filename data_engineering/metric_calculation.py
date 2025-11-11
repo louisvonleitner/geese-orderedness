@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from tqdm import trange
 import csv
 import os
 import json
@@ -8,6 +7,7 @@ import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.decomposition import PCA
 from data_engineering.clean_trajectory import clean_data
 
 
@@ -271,6 +271,9 @@ def calculate_velocity_alignment(geese: dict) -> float:
         ]
     )
 
+    if len(normed_velocities) == 0:
+        return np.nan
+
     normed_velocity_alignment = np.linalg.norm(np.mean(normed_velocities, axis=0))
 
     return normed_velocity_alignment
@@ -287,9 +290,55 @@ def calculate_velocity_deviation(geese: dict) -> float:
         ]
     )
 
+    if len(velocities) == 0:
+        return np.nan
+
     velocity_deviation = np.linalg.norm(np.std(velocities, axis=0))
 
     return velocity_deviation
+
+
+def calculate_velocity_PCA(geese: dict) -> tuple:
+    """Calculate the first and second principal component of the velocity vectors"""
+
+    if len(geese) == 0:
+        return (np.nan, np.nan)
+
+    velocities = np.array(
+        [
+            geese[trj_id]["velocity"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+
+    # handling exceptions
+    if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
+        return (np.nan, np.nan)
+
+
+    # set up PCA
+    pca = PCA(n_components=2)
+
+
+    # execute PCA on Data
+    pca.fit_transform(velocities)
+
+    # extract PCA components
+    first_component, second_component = pca.explained_variance_
+    first_component_percentage, second_component_percentage = (
+        pca.explained_variance_ratio_
+    )
+
+    # this should be higher when birds fly straight and lower when birds fly corners
+    if second_component_percentage != 0:
+        first_to_second_component_ratio = (
+            first_component_percentage / second_component_percentage
+        )
+    else:
+        first_to_second_component_ratio = np.nan
+
+    return (first_component, second_component)
 
 
 def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
@@ -308,6 +357,9 @@ def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
             if geese[trj_id]["raw_acceleration"]["xi"] != 0
         ]
     )
+
+    if len(xi_accelerations) == 0:
+        return np.nan
 
     # calculate standard deviation from mean acceleration in xi direction
     xi_acceleration_deviation = np.linalg.norm(np.std(xi_accelerations))
@@ -328,6 +380,9 @@ def calculate_sidewise_acceleration_deviation(geese: dict) -> float:
         ]
     )
 
+    if len(eta_accelerations) == 0:
+        return np.nan
+
     zeta_accelerations = np.array(
         [
             geese[trj_id]["raw_acceleration"]["zeta"]
@@ -335,6 +390,9 @@ def calculate_sidewise_acceleration_deviation(geese: dict) -> float:
             if geese[trj_id]["raw_acceleration"]["zeta"] != 0
         ]
     )
+
+    if len(zeta_accelerations) == 0:
+        return np.nan
 
     # calculate standard deviation from mean acceleration along each axis
     eta_acceleration_deviation = np.linalg.norm(np.std(eta_accelerations))
@@ -431,17 +489,17 @@ def calculate_metrics(order_metrics: list, filename: str):
         filename, file_column_numbers, file_column_names
     )
 
-    print(f"Cleaning data...")
+    print(f"Cleaning data...", flush=True)
     df, individual_geese_trjs, n_trjs = clean_data(df, individual_geese_trjs)
 
     # abort process
     if n_trjs == 0:
-        print(f"No suitable trajectories!")
+        print(f"No suitable trajectories!", flush=True)
         return None
 
-    print(f"Data Cleaned!")
+    print(f"Data Cleaned!", flush=True)
 
-    print(f"Computing metrics between birds...")
+    print(f"Computing metrics between birds...", flush=True)
 
     # defining loop length as the middle 75%
     first_frame = int(df["frame"].min())
@@ -457,20 +515,25 @@ def calculate_metrics(order_metrics: list, filename: str):
     last_frame = int(last_frame)
 
     # starting loop
-    for frame in trange(first_frame, last_frame):
+    for frame in range(first_frame, last_frame):
 
         # get geese in nice dict
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
 
         if geese == []:
             for metric in order_metrics:
-                metric["values"].append(0)
+                if type(metric['values'][-1]) == tuple:
+                    metric['values'].append((np.nan, np.nan))
+                else:
+                    metric["values"].append(np.nan)
+        
+        else:
 
-        n_geese = len(geese)
+            n_geese = len(geese)
 
-        for metric in order_metrics:
-            calculated_metric = metric["function"](geese)
-            metric["values"].append(calculated_metric)
+            for metric in order_metrics:
+                calculated_metric = metric["function"](geese)
+                metric["values"].append(calculated_metric)
 
         """
         # create adjacency matrix place holders for every metric
@@ -511,7 +574,7 @@ def calculate_metrics(order_metrics: list, filename: str):
                             metric["matrices"][-1][j][i] = metric_weight
         """
 
-    print(f"Saving metrics...")
+    print(f"Saving metrics...", flush=True)
 
     # save matrices in files
     save_metric_output(order_metrics, filename)
@@ -581,25 +644,3 @@ def inverse_exponential_distance_metric(
 
     return weight
 
-
-"""
-metrics = []
-
-boltzmann_metric_dict = {
-    "name": f"boltzmann",
-    "function": boltzmann_metric,
-    "matrices": [],
-    "symmetric": True,
-    "color": "green",
-}
-metrics.append(boltzmann_metric_dict)
-
-inverse_exponential_distance_metric_dict = {
-    "name": f"inverse_exponential_distance",
-    "function": inverse_exponential_distance_metric,
-    "matrices": [],
-    "symmetric": True,
-    "color": "green",
-}
-metrics.append(inverse_exponential_distance_metric_dict)
-"""
