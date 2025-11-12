@@ -50,7 +50,7 @@ def extract_submetrics(metrics):
     return metrics
 
 
-def trajectory_analysis(filename: str, order_metrics: list):
+def trajectory_analysis(filename: str, order_metrics: list, no_plotting=False):
 
     # run metric computation
     order_metrics = calculate_metrics(order_metrics=order_metrics, filename=filename)
@@ -70,24 +70,28 @@ def trajectory_analysis(filename: str, order_metrics: list):
     print("Extracting submetrics...", flush=True)
     order_metrics = extract_submetrics(order_metrics)
 
-    print("Saving plots...", flush=True)
-    for metric in order_metrics:
-        plot_distribution(
-            metric,
-            filename,
-            showing=False,
-            saving=True,
-        )
+    if no_plotting == False:
+        print("Saving plots...", flush=True)
+        for metric in order_metrics:
+            plot_distribution(
+                metric,
+                filename,
+                showing=False,
+                saving=True,
+            )
 
-    plot_metrics_over_time(order_metrics, filename, showing=False, saving=True)
+        plot_metrics_over_time(order_metrics, filename, showing=False, saving=True)
 
-    print("Done!", flush=True)
+        print("Done!", flush=True)
 
     # ===================================================================================================
     # ALL DATA HAS BEEN ACQUIRED, NOW JUST ANIMATION PLOTTING
     # ===================================================================================================
 
-    print(f"Generating animation...", flush=True)
-    animation(filename, order_metrics)
+    if no_plotting == False:
+        print(f"Generating animation...", flush=True)
+        animation(filename, order_metrics)
 
     print(f"Finished the whole process for file {filename}", flush=True)
+
+    return order_metrics

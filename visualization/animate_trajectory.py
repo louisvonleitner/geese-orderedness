@@ -12,7 +12,9 @@ from data_engineering.clean_trajectory import clean_data
 
 # movie metadata
 # ======================================================================================
-plt.rcParams["animation.ffmpeg_path"] = plt.rcParams['animation.ffmpeg_path'] = '/home/louis/bin/ffmpeg'
+plt.rcParams["animation.ffmpeg_path"] = plt.rcParams["animation.ffmpeg_path"] = (
+    "/home/louis/bin/ffmpeg"
+)
 
 metadata = dict(title="Movie", artist="LouisvonLeitner")
 writer = FFMpegWriter(fps=60, metadata=metadata)
@@ -161,7 +163,7 @@ def plot_metrics_over_time(
         return
 
     for metric in order_metrics:
-        metric['values'] = np.nan_to_num(metric['values'], nan=0.0)
+        metric["values"] = np.nan_to_num(metric["values"], nan=0.0)
 
     # --- determine grid size dynamically ---
     n_cols = math.ceil(math.sqrt(n_metrics))
@@ -214,63 +216,6 @@ def plot_metrics_over_time(
         plt.savefig(save_path, dpi=300)
         plt.close()
 
-
-"""
-def plot_metrics_over_time(
-    order_metrics: list, filename: str, showing=True, saving=False
-):
-
-    fig, ax = plt.subplots(2, 2, figsize=(10, 4))
-
-    frames = np.array([i for i in range(len(order_metrics[0]["values"]))])
-
-    for metric_id in range(len(order_metrics)):
-
-        i = metric_id % 2
-
-        if metric_id >= 2:
-            j = 1
-        else:
-            j = 0
-
-        metric = order_metrics[metric_id]
-
-        plot_axis = ax[i][j]
-        sns.lineplot(
-            x=frames,
-            y=metric["values"],
-            ax=plot_axis,
-            color=metric["color"],
-        )
-        if metric["value_space"] != []:
-            value_space = metric["value_space"]
-            plot_axis.set_ylim(value_space[0], value_space[1])
-            value_space_length = value_space[1] - value_space[0]
-            plot_axis.set_ylim(
-                value_space[0] - 0.1 * value_space_length,
-                value_space[1] + 0.1 * value_space_length,
-            )
-        else:
-            plot_axis.set_ylim(np.min(metric["values"]), np.max(metric["values"]))
-
-        plot_axis.set_title(f"{metric['name']} over time")
-        plot_axis.set_xlabel(f"frame")
-        plot_axis.set_ylabel(f"{metric['name']}")
-        plot_axis.grid(color="lightgrey")
-
-    plt.tight_layout()
-
-    if showing == True:
-        plt.show()
-
-    if saving == True:
-        os.makedirs(
-            os.path.dirname(f"data/{filename}/figs/metrics_over_time.png"),
-            exist_ok=True,
-        )
-        plt.savefig(f"data/{filename}/figs/metrics_over_time.png")
-        plt.close()
-"""
 
 # ==========================================================================================
 # this is the actual animation part. The rest is data managing and loading
