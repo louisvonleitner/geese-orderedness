@@ -26,14 +26,16 @@ def extract_submetrics(metrics):
         if metric == None:
             return None
 
-        if type(metric["values"][0]) == tuple:
-            for i in range(len(metric["values"][0])):
+        if metric["submetrics"] == True:
+            for i in range(metric["n_submetrics"]):
                 submetric = metric.copy()
 
                 # check for errors
-                for value in metric['values']:
+                for value in metric["values"]:
                     if type(value) != tuple:
-                        print(f'Value not tuple with value: {value} for metric {metric['name']}')
+                        print(
+                            f"Value not tuple with value: {value} for metric {metric['name']}"
+                        )
 
                 values = [j[i] for j in metric["values"]]
 
@@ -58,7 +60,9 @@ def trajectory_analysis(filename: str, order_metrics: list):
 
     # edge case handling
     if order_metrics == None:
-        print(f"Aborting process because no suitable trajectories were found.", flush=True)
+        print(
+            f"Aborting process because no suitable trajectories were found.", flush=True
+        )
         return None
 
     print(f"Done!", flush=True)

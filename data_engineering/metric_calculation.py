@@ -316,10 +316,8 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
         return (np.nan, np.nan)
 
-
     # set up PCA
     pca = PCA(n_components=2)
-
 
     # execute PCA on Data
     pca.fit_transform(velocities)
@@ -522,11 +520,12 @@ def calculate_metrics(order_metrics: list, filename: str):
 
         if geese == []:
             for metric in order_metrics:
-                if type(metric['values'][-1]) == tuple:
-                    metric['values'].append((np.nan, np.nan))
+                if metric["submetrics"] == True:
+                    nan_tuple = tuple([np.nan] * metric["n_submetrics"])
+                    metric["values"].append(nan_tuple)
                 else:
                     metric["values"].append(np.nan)
-        
+
         else:
 
             n_geese = len(geese)
@@ -643,4 +642,3 @@ def inverse_exponential_distance_metric(
     weight = np.exp(-H)
 
     return weight
-
