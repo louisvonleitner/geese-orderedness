@@ -37,7 +37,8 @@ def extract_submetrics(metrics):
 
                 values = [j[i] for j in metric["values"]]
 
-                submetric["name"] = metric["name"] + f"_submetric_{i}"
+                submetric["name"] = metric["name"] + f"_submetric_{i + 1}"
+                submetric["value_space"] = metric["value_space"][i]
                 submetric["values"] = values
                 submetrics.append(submetric)
 
@@ -69,6 +70,23 @@ def trajectory_analysis(filename: str, order_metrics: list, no_plotting=False):
     order_metrics = extract_submetrics(order_metrics)
 
     if no_plotting == False:
+
+        for metric in order_metrics:
+            if len(metric.get("values", [])) > 0 and not np.all(
+                np.isnan(metric["values"])
+            ):
+                raise Exception(
+                    "Something happened here that was unexpected. Check commented code under!"
+                )
+
+        """
+        order_metrics = [
+            m
+            for m in order_metrics
+            if len(m.get("values", [])) > 0 and not np.all(np.isnan(m["values"]))
+        ]
+        """
+
         print("Saving plots...", flush=True)
         for metric in order_metrics:
             plot_distribution(

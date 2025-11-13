@@ -28,7 +28,6 @@ i = 0
 for filename in os.listdir(folder_path):
     i += 1
 
-
     order_metrics = []
 
     normalized_velocity_alignment_metric = {
@@ -37,6 +36,7 @@ for filename in os.listdir(folder_path):
         "values": [],
         "color": "forestgreen",
         "value_space": [0.8, 1],
+        "submetrics": False,
     }
     order_metrics.append(normalized_velocity_alignment_metric)
     velocity_deviation_metric = {
@@ -45,6 +45,7 @@ for filename in os.listdir(folder_path):
         "values": [],
         "color": "green",
         "value_space": [0, 2.25],
+        "submetrics": False,
     }
     order_metrics.append(velocity_deviation_metric)
     longitudinal_acceleration_metric = {
@@ -53,6 +54,7 @@ for filename in os.listdir(folder_path):
         "values": [],
         "color": "red",
         "value_space": [0, 1.25],
+        "submetrics": False,
     }
     order_metrics.append(longitudinal_acceleration_metric)
     sidewise_acceleration_metric = {
@@ -61,6 +63,7 @@ for filename in os.listdir(folder_path):
         "values": [],
         "color": "crimson",
         "value_space": [0, 4],
+        "submetrics": False,
     }
     order_metrics.append(sidewise_acceleration_metric)
     # PCA velocity metrics
@@ -69,7 +72,9 @@ for filename in os.listdir(folder_path):
         "function": calculate_velocity_PCA,
         "values": [],
         "color": "blue",
-        "value_space": [],
+        "value_space": ([0, 10], [0, 1]),
+        "submetrics": True,
+        "n_submetrics": 2,
     }
     order_metrics.append(PCA_velocity_metric)
 

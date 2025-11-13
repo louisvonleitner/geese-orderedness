@@ -85,6 +85,9 @@ def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
     values = metric["values"]
     name = metric["name"]
 
+    if len(values) == 0:
+        return None
+
     fig = plt.figure(figsize=(8, 5))
     if isinstance(values, list):
         # Flatten each entry and concatenate
@@ -164,6 +167,8 @@ def plot_metrics_over_time(
 
     for metric in order_metrics:
         metric["values"] = np.nan_to_num(metric["values"], nan=0.0)
+        if len(metric["values"]) == 0:
+            return None
 
     # --- determine grid size dynamically ---
     n_cols = math.ceil(math.sqrt(n_metrics))
