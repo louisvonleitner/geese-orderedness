@@ -9,9 +9,7 @@ from matplotlib import pyplot as plt
 from data_engineering.metric_calculation import (
     calculate_metrics,
 )
-from data_engineering.metric_evaluation import (
-    calculate_algebraic_connectivity_over_time,
-)
+
 from visualization.animate_trajectory import (
     animation,
     plot_distribution,

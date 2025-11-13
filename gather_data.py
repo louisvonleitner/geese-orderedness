@@ -5,6 +5,7 @@ import os
 import gc
 import matplotlib.pyplot as plt
 import csv
+import re
 
 from data_engineering.metric_calculation import read_trajectory_data, clean_data
 
@@ -19,10 +20,34 @@ def read_metric_csv_into_list(filepath):
         reader = csv.reader(f)
         for row in reader:
             for item in row:
+                item = item.strip()
+                if not item:
+                    continue
+
+                # Remove np.float64(...) wrappers if present
+                item = re.sub(r"np\.float64\(([^)]+)\)", r"\1", item)
+
+                # Try simple float conversion
                 try:
                     values.append(float(item))
+                    continue
                 except ValueError:
-                    raise ValueError(f"Invalid float value '{item}' in file {filepath}")
+                    pass
+
+                # Try tuple parsing, handling np.float64 inside tuples
+                if item.startswith("(") and item.endswith(")"):
+                    inner = item.strip("()")
+                    inner = re.sub(r"np\.float64\(([^)]+)\)", r"\1", inner)
+                    try:
+                        t = tuple(float(x) for x in inner.split(","))
+                        values.append(t)
+                        continue
+                    except ValueError:
+                        pass
+
+                # If all else fails
+                raise ValueError(f"Invalid item '{item}' in file {filepath}")
+
     return values
 
 
@@ -55,9 +80,18 @@ def get_number_of_geese(foldername):
     return n_trjs
 
 
+# ===========================================================================================
+# Get wind data for trjs
+
+wind_df = pd.read_excel("data/TABLE-2014-2023.xlsx", usecols="A,L,M")
+
+# ================================================================================================
+
+
 features = [
     "trj_name",
     "n_frames",
+    "wind_speed",
     "values",
     "mean",
     "median",
@@ -89,6 +123,7 @@ mean_df = pd.DataFrame(
         "trj_name",
         "n_geese",
         "n_frames",
+        "wind_speed",
         "normalized_velocity_alignment",
         "normalized_velocity_alignment_std_dev",
         "velocity_deviation",
@@ -110,6 +145,7 @@ for foldername in directory_list:
         foldername != "trajectory_data"
         and foldername != "NOTES.txt"
         and ".csv" not in foldername
+        and ".xlsx" not in foldername
     ):
         nan_metric = False
 
@@ -122,12 +158,36 @@ for foldername in directory_list:
         n_geese = get_number_of_geese(foldername)
         means["n_geese"] = n_geese
 
+        wind_frame_id = foldername.split("E", 1)[0]
+        wind_speed = wind_df.loc[wind_df["ID"] == wind_frame_id, "WIND[m/s]"]
+        if not wind_speed.empty:
+            wind_speed = wind_speed.iloc[0]
+        else:
+            wind_speed = np.nan
+
+        means["wind_speed"] = wind_speed
         # read data points into numpy arrays and calculate mean and other metrics
         for metric in data_metrics:
             if not nan_metric:
-                values = read_metric_csv_into_list(
-                    "data/" + foldername + "/" + metric + "_values.csv"
-                )
+                if (
+                    metric == "velocity_pca_first_component"
+                    or metric == "velocity_pca_second_component"
+                ):
+                    values = read_metric_csv_into_list(
+                        "data/" + foldername + "/PCA_velocity_metric_values.csv"
+                    )
+                    if metric == "velocity_pca_first_component":
+                        values = [j[0] for j in values]
+                    else:
+                        values = [j[1] for j in values]
+                # if not PCA metric
+                else:
+                    values = read_metric_csv_into_list(
+                        "data/" + foldername + "/" + metric + "_values.csv"
+                    )
+
+                # turn into numpy array and remove nans
+                values = np.array(values)
                 values = values[~np.isnan(values)]
                 if len(values) == 0:
                     nan_metric = True
