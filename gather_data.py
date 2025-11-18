@@ -80,18 +80,123 @@ def get_number_of_geese(foldername):
     return n_trjs
 
 
-# ===========================================================================================
-# Get wind data for trjs
+import numpy as np
 
-wind_df = pd.read_excel("data/TABLE-2014-2023.xlsx", usecols="A,L,M")
 
-# ================================================================================================
+def compute_crosswind_func(
+    average_flock_velocity,
+    camera_facing_direction_deg,
+    wind_coming_from_direction_deg,
+    wind_speed_ms,
+):
+    """
+    Compute crosswind acting on a bird flock when:
+    - Bird velocity is expressed in camera coordinates
+    - Wind direction is expressed in world compass degrees (N/E/S/W)
+
+    Coordinate conventions:
+    - Camera y-axis = direction the camera faces (forward)
+    - Camera x-axis = right-left direction in the image
+    - Wind direction is 'coming from' (meteorological convention)
+
+    returns crosswind in m/s (positive <==> wind from the left, negative <==> wind from the right)
+    """
+
+    # -------------------------
+    # 1. Extract flock velocity in camera XY
+    # -------------------------
+    flock_xy = np.array(
+        [average_flock_velocity[0], average_flock_velocity[1]], dtype=float
+    )
+
+    flock_speed = np.linalg.norm(flock_xy)
+    if flock_speed == 0:
+        raise Exception("Average velocity of bird flock is 0!")
+        return 0.0
+
+    flock_dir_unit = flock_xy / flock_speed
+
+    # -------------------------
+    # 2. Build wind vector in WORLD coordinates
+    # -------------------------
+    # Meteorological convention:
+    #   0° = wind from North  → blowing toward South
+    #   90° = wind from East → blowing toward West
+    theta = np.deg2rad(wind_coming_from_direction_deg)
+
+    wind_world = wind_speed_ms * np.array(
+        [np.sin(theta), -np.cos(theta)]  # +x = East  # +y = South
+    )
+
+    # -------------------------
+    # 3. Rotate wind vector into CAMERA coordinate system
+    # -------------------------
+    # Camera facing direction (world frame):
+    #   0° = North, 90° = East
+    # To convert world → camera:
+    #   rotate by  -camera_facing_direction
+    phi = np.deg2rad(camera_facing_direction_deg)
+
+    R_world_to_camera = np.array(
+        [[np.cos(phi), np.sin(phi)], [-np.sin(phi), np.cos(phi)]]
+    )
+
+    wind_camera = R_world_to_camera @ wind_world
+
+    # -------------------------
+    # 4. Compute perpendicular direction to flock motion
+    # -------------------------
+    perpendicular_unit = np.array([-flock_dir_unit[1], flock_dir_unit[0]])
+
+    # -------------------------
+    # 5. Crosswind = projection of wind onto perpendicular
+    # -------------------------
+    crosswind_ms = np.dot(wind_camera, perpendicular_unit)
+
+    return crosswind_ms
+
+
+def compute_crosswind(foldername: str):
+
+    # Get wind data for trjs
+    recording_df = pd.read_excel("data/TABLE-2014-2023.xlsx", usecols="A,L,M")
+
+    wind_frame_id = foldername.split("E", 1)[0]
+
+    # get windspeed from file
+    wind_speed = recording_df.loc[recording_df["ID"] == wind_frame_id, "WIND[m/s]"]
+    if not wind_speed.empty:
+        wind_speed = wind_speed.iloc[0]
+    else:
+        wind_speed = np.nan
+
+    if not np.isnan(wind_speed):
+        # get directional information from excel sheet
+        wind_direction_angle = recording_df.loc[
+            recording_df["ID"] == wind_frame_id, "WIND DIR[deg]"
+        ]
+        camera_direction_angle = recording_df.loc[
+            recording_df["ID"] == wind_frame_id, "CAMERA DIR[DEG]"
+        ]
+
+        # load average velocity vector
+        average_velocities = np.load(
+            "data/" + foldername + "/average_velocity_vectors.npy"
+        )
+        average_velocity = np.mean(average_velocities, axis=0)
+
+        compute_crosswind_func(
+            average_flock_velocity=average_velocity,
+            camera_facing_direction_deg=camera_direction_angle,
+            wind_coming_from_direction_deg=wind_direction_angle,
+            wind_speed_ms=wind_speed,
+        )
 
 
 features = [
     "trj_name",
     "n_frames",
-    "wind_speed",
+    "crosswind_speed",
     "values",
     "mean",
     "median",
@@ -123,7 +228,7 @@ mean_df = pd.DataFrame(
         "trj_name",
         "n_geese",
         "n_frames",
-        "wind_speed",
+        "crosswind_speed",
         "normalized_velocity_alignment",
         "normalized_velocity_alignment_std_dev",
         "velocity_deviation",
@@ -158,14 +263,10 @@ for foldername in directory_list:
         n_geese = get_number_of_geese(foldername)
         means["n_geese"] = n_geese
 
-        wind_frame_id = foldername.split("E", 1)[0]
-        wind_speed = wind_df.loc[wind_df["ID"] == wind_frame_id, "WIND[m/s]"]
-        if not wind_speed.empty:
-            wind_speed = wind_speed.iloc[0]
-        else:
-            wind_speed = np.nan
+        # compute crosswind
+        crosswind = compute_crosswind(foldername)
+        means["crosswind_speed"] = crosswind
 
-        means["wind_speed"] = wind_speed
         # read data points into numpy arrays and calculate mean and other metrics
         for metric in data_metrics:
             if not nan_metric:

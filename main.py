@@ -85,7 +85,7 @@ for filename in os.listdir(folder_path):
         filename = os.path.splitext(filename)[0]
 
         # launch analysis
-        trajectory_analysis(filename, order_metrics)
+        trajectory_analysis(filename, order_metrics, no_plotting=True)
 
     plt.close("all")
     gc.collect()

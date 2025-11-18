@@ -288,7 +288,7 @@ def calculate_sidewise_acceleration_deviation(geese: dict) -> float:
     return combined_sidewise_acceleration_deviation
 
 
-def save_metric_output(order_metrics: list, filename: str):
+def save_metric_output(order_metrics: list, average_directions, filename: str):
 
     functions = {}
     values = {}
@@ -324,6 +324,13 @@ def save_metric_output(order_metrics: list, filename: str):
         encoding="utf-8",
     ) as f:
         json.dump(order_metrics, f, ensure_ascii=False, indent=4)
+
+    # save numpy array of average velocity vectors
+    average_directions = [
+        i for i in average_directions if type(i) == np.ndarray and i.shape[0] == 3
+    ]
+    average_directions = np.array(average_directions)
+    np.save(f"data/{filename}/average_velocity_vectors.npy", average_directions)
 
     # reassign metrics
     for metric in order_metrics:
@@ -391,6 +398,8 @@ def calculate_metrics(order_metrics: list, filename: str):
 
     buffer_length = length * 0.125
 
+    average_directions = []
+
     first_frame += buffer_length
     last_frame -= buffer_length
 
@@ -402,6 +411,13 @@ def calculate_metrics(order_metrics: list, filename: str):
 
         # get geese in nice dict
         geese = get_frame_geese(frame, individual_geese_trjs, column_names)
+
+        # compute mean velocity vector (for crosswind determination)
+        velocities = np.array([geese[trj_id]["velocity"] for trj_id in geese])
+
+        if velocities.size > 0:
+            velocity_mean = np.mean(velocities, axis=0)
+            average_directions.append(velocity_mean)
 
         if geese == []:
             for metric in order_metrics:
@@ -422,7 +438,7 @@ def calculate_metrics(order_metrics: list, filename: str):
     print(f"Saving metrics...", flush=True)
 
     # save matrices in files
-    save_metric_output(order_metrics, filename)
+    save_metric_output(order_metrics, average_directions, filename)
 
     # end of metrics calculation
     return order_metrics
