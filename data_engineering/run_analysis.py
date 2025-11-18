@@ -37,7 +37,7 @@ def extract_submetrics(metrics):
 
                 values = [j[i] for j in metric["values"]]
 
-                submetric["name"] = metric["name"] + f"_submetric_{i + 1}"
+                submetric["name"] = metric["submetric_names"][i]
                 submetric["value_space"] = metric["value_space"][i]
                 submetric["values"] = values
                 submetrics.append(submetric)

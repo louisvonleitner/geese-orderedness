@@ -72,9 +72,15 @@ for filename in os.listdir(folder_path):
         "function": calculate_velocity_PCA,
         "values": [],
         "color": "blue",
-        "value_space": ([0, 10], [0, 1]),
+        "value_space": ([0, 10], [0, 1], [0, 1], [0, 1]),
         "submetrics": True,
-        "n_submetrics": 2,
+        "n_submetrics": 4,
+        "submetric_names": [
+            "first_pca_component",
+            "second_pca_component",
+            "first_pca_component_velocity_alignment",
+            "second_pca_component_velocity_alignment",
+        ],
     }
     order_metrics.append(PCA_velocity_metric)
 

@@ -80,9 +80,6 @@ def get_number_of_geese(foldername):
     return n_trjs
 
 
-import numpy as np
-
-
 def compute_crosswind_func(
     average_flock_velocity,
     camera_facing_direction_deg,
@@ -159,7 +156,7 @@ def compute_crosswind_func(
 def compute_crosswind(foldername: str):
 
     # Get wind data for trjs
-    recording_df = pd.read_excel("data/TABLE-2014-2023.xlsx", usecols="A,L,M")
+    recording_df = pd.read_excel("data/TABLE-2014-2023.xlsx", usecols="A,K,L,M")
 
     wind_frame_id = foldername.split("E", 1)[0]
 
@@ -169,28 +166,38 @@ def compute_crosswind(foldername: str):
         wind_speed = wind_speed.iloc[0]
     else:
         wind_speed = np.nan
+        return wind_speed
 
     if not np.isnan(wind_speed):
         # get directional information from excel sheet
         wind_direction_angle = recording_df.loc[
             recording_df["ID"] == wind_frame_id, "WIND DIR[deg]"
-        ]
+        ].iloc[0]
         camera_direction_angle = recording_df.loc[
             recording_df["ID"] == wind_frame_id, "CAMERA DIR[DEG]"
-        ]
+        ].iloc[0]
 
         # load average velocity vector
         average_velocities = np.load(
             "data/" + foldername + "/average_velocity_vectors.npy"
         )
+        if len(average_velocities) == 0:
+            return np.nan
+
         average_velocity = np.mean(average_velocities, axis=0)
 
-        compute_crosswind_func(
-            average_flock_velocity=average_velocity,
-            camera_facing_direction_deg=camera_direction_angle,
-            wind_coming_from_direction_deg=wind_direction_angle,
-            wind_speed_ms=wind_speed,
-        )
+        if type(average_velocity) == np.ndarray:
+
+            crosswind = compute_crosswind_func(
+                average_flock_velocity=average_velocity,
+                camera_facing_direction_deg=camera_direction_angle,
+                wind_coming_from_direction_deg=wind_direction_angle,
+                wind_speed_ms=wind_speed,
+            )
+            return crosswind
+
+        else:
+            return np.nan
 
 
 features = [
@@ -215,34 +222,17 @@ data_metrics = [
     "velocity_deviation",
     "sidewise_acceleration_deviation",
     "longitudinal_acceleration_deviation",
-    "velocity_pca_first_component",
-    "velocity_pca_second_component",
+    "first_pca_component",
+    "second_pca_component",
+    "first_pca_component_velocity_alignment",
+    "second_pca_component_velocity_alignment",
 ]
 metric_dfs = {}
 for metric in data_metrics:
     metric_dfs[metric] = pd.DataFrame([], columns=features)
 
-mean_df = pd.DataFrame(
-    [],
-    columns=[
-        "trj_name",
-        "n_geese",
-        "n_frames",
-        "crosswind_speed",
-        "normalized_velocity_alignment",
-        "normalized_velocity_alignment_std_dev",
-        "velocity_deviation",
-        "velocity_deviation_std_dev",
-        "sidewise_acceleration_deviation",
-        "sidewise_acceleration_deviation_std_dev",
-        "longitudinal_acceleration_deviation",
-        "longitudinal_acceleration_deviation_std_dev",
-        "velocity_pca_first_component",
-        "velocity_pca_first_component_std_dev",
-        "velocity_pca_second_component",
-        "velocity_pca_second_component_std_dev",
-    ],
-)
+mean_list = []
+
 
 i = 0
 for foldername in directory_list:
@@ -271,16 +261,22 @@ for foldername in directory_list:
         for metric in data_metrics:
             if not nan_metric:
                 if (
-                    metric == "velocity_pca_first_component"
-                    or metric == "velocity_pca_second_component"
+                    metric == "first_pca_component"
+                    or metric == "first_pca_component"
+                    or metric == "first_pca_component_velocity_alignment"
+                    or metric == "second_pca_component_velocity_alignment"
                 ):
                     values = read_metric_csv_into_list(
                         "data/" + foldername + "/PCA_velocity_metric_values.csv"
                     )
                     if metric == "velocity_pca_first_component":
                         values = [j[0] for j in values]
-                    else:
+                    elif metric == "second_pca_component":
                         values = [j[1] for j in values]
+                    elif metric == "first_pca_component_velocity_alignment":
+                        values = [j[2] for j in values]
+                    elif metric == "second_pca_component_velocity_alignment":
+                        values = [j[3] for j in values]
                 # if not PCA metric
                 else:
                     values = read_metric_csv_into_list(
@@ -320,7 +316,34 @@ for foldername in directory_list:
                     metric_dfs[metric].loc[len(metric_dfs[metric])] = row
 
         if not nan_metric:
-            mean_df.loc[len(mean_df)] = means
+            mean_list.append(means)
+
+
+mean_df = pd.DataFrame(
+    mean_list,
+    columns=[
+        "trj_name",
+        "n_geese",
+        "n_frames",
+        "crosswind_speed",
+        "normalized_velocity_alignment",
+        "normalized_velocity_alignment_std_dev",
+        "velocity_deviation",
+        "velocity_deviation_std_dev",
+        "sidewise_acceleration_deviation",
+        "sidewise_acceleration_deviation_std_dev",
+        "longitudinal_acceleration_deviation",
+        "longitudinal_acceleration_deviation_std_dev",
+        "first_pca_component",
+        "first_pca_component_std_dev",
+        "second_pca_component",
+        "second_pca_component_std_dev",
+        "first_pca_component_velocity_alignment",
+        "first_pca_component_velocity_alignment_std_dev",
+        "second_pca_component_velocity_alignment",
+        "second_pca_component_velocity_alignment_std_dev",
+    ],
+)
 
 
 mean_df.to_csv("data/metric_means.csv", mode="w")

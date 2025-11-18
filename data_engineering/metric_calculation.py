@@ -196,6 +196,8 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
             if geese[trj_id]["velocity_norm"] != 0
         ]
     )
+    average_velocity = np.mean(velocities, axis=0)
+    average_velocity_normed = average_velocity / np.linalg.norm(average_velocity)
 
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
@@ -208,20 +210,26 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     pca.fit_transform(velocities)
 
     # extract PCA components
-    first_component, second_component = pca.explained_variance_
-    first_component_percentage, second_component_percentage = (
-        pca.explained_variance_ratio_
+    first_component, second_component = pca.components_
+
+    first_variance = np.linalg.norm(first_component)
+    second_variance = np.linalg.norm(second_component)
+
+    # calculating alignment with velocity
+
+    first_component_alignment = np.dot(
+        first_component / first_variance, average_velocity_normed
+    )
+    second_component_alignment = np.dot(
+        second_component / second_variance, average_velocity_normed
     )
 
-    # this should be higher when birds fly straight and lower when birds fly corners
-    if second_component_percentage != 0:
-        first_to_second_component_ratio = (
-            first_component_percentage / second_component_percentage
-        )
-    else:
-        first_to_second_component_ratio = np.nan
-
-    return (first_component, second_component)
+    return (
+        first_variance,
+        second_variance,
+        first_component_alignment,
+        second_component_alignment,
+    )
 
 
 def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
