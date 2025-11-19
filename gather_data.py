@@ -262,7 +262,7 @@ for foldername in directory_list:
             if not nan_metric:
                 if (
                     metric == "first_pca_component"
-                    or metric == "first_pca_component"
+                    or metric == "second_pca_component"
                     or metric == "first_pca_component_velocity_alignment"
                     or metric == "second_pca_component_velocity_alignment"
                 ):
@@ -306,7 +306,7 @@ for foldername in directory_list:
                     row = {
                         "trj_name": trj_name,
                         "n_frames": len(values),
-                        "values": values,
+                        "values": values.tolist(),
                         "mean": mean,
                         "median": median,
                         "std_dev": std_dev,

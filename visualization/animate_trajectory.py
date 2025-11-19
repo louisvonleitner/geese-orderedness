@@ -88,7 +88,6 @@ def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
     if len(values) == 0:
         return None
 
-    fig = plt.figure(figsize=(8, 5))
     if isinstance(values, list):
         # Flatten each entry and concatenate
         values = np.concatenate([np.ravel(v) for v in values if v is not None])
@@ -97,6 +96,43 @@ def plot_distribution(metric: dict, filename: str, showing=True, saving=False):
     else:
         # Fallback — try to convert to numpy array and flatten
         values = np.ravel(values)
+
+    # Remove NaNs
+    values = values[~np.isnan(values)]
+
+    if len(values) == 0:
+        print(f"[WARN] No data to plot for metric {name}. Skipping Histogram.")
+        return
+
+    # Check if all values are identical → histogram impossible
+    if np.ptp(values) < 1e-8:  # range == 0
+        print(f"[WARN] All values close for metric {name}.")
+        ax = sns.barplot(
+            x=[float(np.mean(values))],
+            y=[len(values)],
+            order=[float(np.mean(values))],
+            color="blue",
+        )
+
+        # figure prettiness
+        plt.title(f"Distribution of {name} values")
+        plt.xlabel(f"{name}")
+        plt.ylabel("count")
+
+        plt.tight_layout()
+
+        if showing == True:
+            plt.show()
+
+        if saving == True:
+            os.makedirs(
+                os.path.dirname(f"data/{filename}/figs/{name}_distribution.png"),
+                exist_ok=True,
+            )
+            plt.savefig(f"data/{filename}/figs/{name}_distribution.png")
+            plt.close()
+
+        return
 
     mean = np.mean(values)
     median = np.median(values)

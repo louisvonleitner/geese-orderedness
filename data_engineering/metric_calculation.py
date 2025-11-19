@@ -187,7 +187,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     """Calculate the first and second principal component of the velocity vectors"""
 
     if len(geese) == 0:
-        return (np.nan, np.nan)
+        return (np.nan, np.nan, np.nan, np.nan)
 
     velocities = np.array(
         [
@@ -201,7 +201,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
-        return (np.nan, np.nan)
+        return (np.nan, np.nan, np.nan, np.nan)
 
     # set up PCA
     pca = PCA(n_components=2)
@@ -212,21 +212,23 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     # extract PCA components
     first_component, second_component = pca.components_
 
-    first_variance = np.linalg.norm(first_component)
-    second_variance = np.linalg.norm(second_component)
+    first_component_length = np.linalg.norm(first_component)
+    second_component_length = np.linalg.norm(second_component)
+
+    first_component_variance, second_component_variance = pca.explained_variance_
 
     # calculating alignment with velocity
 
     first_component_alignment = np.dot(
-        first_component / first_variance, average_velocity_normed
+        first_component / first_component_length, average_velocity_normed
     )
     second_component_alignment = np.dot(
-        second_component / second_variance, average_velocity_normed
+        second_component / second_component_length, average_velocity_normed
     )
 
     return (
-        first_variance,
-        second_variance,
+        first_component_variance,
+        second_component_variance,
         first_component_alignment,
         second_component_alignment,
     )
