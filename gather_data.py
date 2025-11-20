@@ -226,6 +226,10 @@ data_metrics = [
     "second_pca_component",
     "first_pca_component_velocity_alignment",
     "second_pca_component_velocity_alignment",
+    "first_pca_component_horizontal_axis_alignment",
+    "first_pca_component_z_axis_alignment",
+    "second_pca_component_horizontal_axis_alignment",
+    "second_pca_component_z_axis_alignment",
 ]
 metric_dfs = {}
 for metric in data_metrics:
@@ -265,18 +269,33 @@ for foldername in directory_list:
                     or metric == "second_pca_component"
                     or metric == "first_pca_component_velocity_alignment"
                     or metric == "second_pca_component_velocity_alignment"
+                    or metric == "absolute_first_pca_component_velocity_alignment"
+                    or metric == "absolute_second_pca_component_velocity_alignment"
                 ):
                     values = read_metric_csv_into_list(
                         "data/" + foldername + "/PCA_velocity_metric_values.csv"
                     )
                     if metric == "velocity_pca_first_component":
                         values = [j[0] for j in values]
+                        for value in values:
+                            if value < 0:
+                                print("Value < 0 found")
                     elif metric == "second_pca_component":
                         values = [j[1] for j in values]
+                        for value in values:
+                            if value < 0:
+                                print("Value < 0 found")
                     elif metric == "first_pca_component_velocity_alignment":
                         values = [j[2] for j in values]
                     elif metric == "second_pca_component_velocity_alignment":
                         values = [j[3] for j in values]
+                    elif metric == "absolute_first_pca_component_velocity_alignment":
+                        values = [j[2] for j in values]
+                        values = np.abs(values)
+                    elif metric == "absolute_second_pca_component_velocity_alignment":
+                        values = [j[3] for j in values]
+                        values = np.abs(values)
+
                 # if not PCA metric
                 else:
                     values = read_metric_csv_into_list(
@@ -342,6 +361,14 @@ mean_df = pd.DataFrame(
         "first_pca_component_velocity_alignment_std_dev",
         "second_pca_component_velocity_alignment",
         "second_pca_component_velocity_alignment_std_dev",
+        "first_pca_component_horizontal_axis_alignment",
+        "first_pca_component_horizontal_axis_alignment_std_dev",
+        "first_pca_component_z_axis_alignment",
+        "first_pca_component_z_axis_alignment_std_dev",
+        "second_pca_component_horizontal_axis_alignment",
+        "second_pca_component_horizontal_axis_alignment_std_dev",
+        "second_pca_component_z_axis_alignment",
+        "second_pca_component_z_axis_alignment_std_dev",
     ],
 )
 
@@ -349,3 +376,6 @@ mean_df = pd.DataFrame(
 mean_df.to_csv("data/metric_means.csv", mode="w")
 for metric in data_metrics:
     metric_dfs[metric].to_csv("data/" + metric + "_df.csv")
+
+
+print("FINISHED GATHERING ALL DATA!")
