@@ -196,7 +196,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
         return normed_vector
 
     if len(geese) == 0:
-        return tuple([np.nan for _ in range(10)])
+        return tuple([np.nan for _ in range(8)])
 
     velocities = np.array(
         [
@@ -210,7 +210,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
-        return tupe([np.nan for _ in range(10)])
+        return tuple([np.nan for _ in range(8)])
 
     # set up PCA
     pca = PCA(n_components=2)
@@ -231,10 +231,10 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     # calculating alignment with velocity
 
-    first_component_alignment = np.abs(
+    first_component_velocity_alignment = np.abs(
         np.dot(normed_first_component, average_velocity_normed)
     )
-    second_component_alignment = np.abs(
+    second_component_velocity_alignment = np.abs(
         np.dot(normed_second_component, average_velocity_normed)
     )
 
@@ -246,7 +246,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     xy_plane_perp_vector = horizontal_perpendicular(average_velocity_normed)
     # calculate alignment with vector in xy plane perpendicular to flight direction
     first_component_xy_alignment = np.abs(
-        np.dot(normed_second_component, xy_plane_perp_vector)
+        np.dot(normed_first_component, xy_plane_perp_vector)
     )
     second_component_xy_alignment = np.abs(
         np.dot(normed_second_component, xy_plane_perp_vector)
@@ -254,11 +254,11 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     return (
         first_component_variance,
-        second_component_variance,
-        first_component_alignment,
-        second_component_alignment,
+        first_component_velocity_alignment,
         first_component_xy_alignment,
         first_component_z_alignment,
+        second_component_variance,
+        second_component_velocity_alignment,
         second_component_xy_alignment,
         second_component_z_alignment,
     )
