@@ -15,6 +15,7 @@ from data_engineering.metric_calculation import (
     calculate_longitudinal_acceleration_deviation,
     calculate_sidewise_acceleration_deviation,
     calculate_velocity_PCA,
+    gaussian_entropy,
 )
 
 
@@ -48,24 +49,7 @@ for filename in os.listdir(folder_path):
         "submetrics": False,
     }
     order_metrics.append(velocity_deviation_metric)
-    longitudinal_acceleration_metric = {
-        "name": "longitudinal_acceleration_deviation",
-        "function": calculate_longitudinal_acceleration_deviation,
-        "values": [],
-        "color": "red",
-        "value_space": [0, 1.25],
-        "submetrics": False,
-    }
-    order_metrics.append(longitudinal_acceleration_metric)
-    sidewise_acceleration_metric = {
-        "name": "sidewise_acceleration_deviation",
-        "function": calculate_sidewise_acceleration_deviation,
-        "values": [],
-        "color": "crimson",
-        "value_space": [0, 4],
-        "submetrics": False,
-    }
-    order_metrics.append(sidewise_acceleration_metric)
+
     # PCA velocity metrics
     PCA_velocity_metric = {
         "name": "PCA_velocity_metric",
@@ -77,25 +61,34 @@ for filename in os.listdir(folder_path):
             [0, 1],
             [0, 1],
             [0, 1],
-            [0, 1],
-            [0, 1],
-            [0, 1],
-            [0, 1],
+            # [0, 1],
+            # [0, 1],
+            # [0, 1],
+            # [0, 1],
         ),
         "submetrics": True,
-        "n_submetrics": 8,
+        "n_submetrics": 4,
         "submetric_names": [
             "first_pca_component",
-            "first_pca_component_velocity_alignment",
+            # "first_pca_component_velocity_alignment",
             "first_pca_component_horizontal_axis_alignment",
-            "first_pca_component_z_axis_alignment",
+            # "first_pca_component_z_axis_alignment",
             "second_pca_component",
             "second_pca_component_velocity_alignment",
-            "second_pca_component_horizontal_axis_alignment",
-            "second_pca_component_z_axis_alignment",
+            # "second_pca_component_horizontal_axis_alignment",
+            # "second_pca_component_z_axis_alignment",
         ],
     }
     order_metrics.append(PCA_velocity_metric)
+    gaussian_entropy_metric = {
+        "name": "gaussian_entropy",
+        "function": gaussian_entropy,
+        "values": [],
+        "color": "darkred",
+        "value_space": [],
+        "submetrics": False,
+    }
+    order_metrics.append(gaussian_entropy_metric)
 
     if i <= amount_of_analysises:
         print(f"Starting with analysis {i} / {amount_of_analysises}", flush=True)

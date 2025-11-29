@@ -264,6 +264,47 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     )
 
 
+def gaussian_entropy(geese: dict, regularize=1e-10) -> float:
+    """
+    Estimate the differential entropy of data X under a multivariate Gaussian
+    assumption using plug-in estimator with sample covariance.
+
+    Args:
+        X: array-like, shape (N, k)  -- N samples, k dimensions
+        regularize: float           -- small value added to diagonal for stability
+
+    Returns:
+        H: float  -- estimated differential entropy (nats)
+    """
+
+    velocities = np.array(
+        [
+            geese[trj_id]["velocity"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+    X = velocities.copy()
+    X = np.asarray(X)
+    if X.ndim != 2:
+        raise ValueError("X must be 2D: shape (N, k)")
+    N, k = X.shape
+    # sample covariance (unbiased, ddof=1). ML would use ddof=0; either is OK for plug-in.
+    Sigma = np.cov(X, rowvar=False, ddof=1)
+    # regularize for numerical stability / near-singular covariances
+    Sigma = Sigma + regularize * np.eye(k)
+
+    sign, logdet = np.linalg.slogdet(Sigma)
+    if sign <= 0:
+        raise ValueError(
+            "Covariance matrix not positive definite (sign <= 0). "
+            "Try increasing regularize."
+        )
+
+    H = 0.5 * (k * (1.0 + np.log(2 * np.pi)) + logdet)
+    return H  # in nats
+
+
 def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
     """Calculate the longitudinal acceleration deviation of a set of geese
     return (
