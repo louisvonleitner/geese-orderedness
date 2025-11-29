@@ -219,19 +219,12 @@ amount_of_analysises = len(directory_list) - 1
 
 data_metrics = [
     "first_pca_component",
-    "first_pca_component_velocity_alignment",
-    "first_pca_component_horizontal_axis_alignment",
-    "first_pca_component_z_axis_alignment",
     "second_pca_component",
-    "second_pca_component_velocity_alignment",
-    "second_pca_component_horizontal_axis_alignment",
-    "second_pca_component_z_axis_alignment",
     "normalized_velocity_alignment",
     "velocity_deviation",
-    "sidewise_acceleration_deviation",
-    "longitudinal_acceleration_deviation",
+    "gaussian_entropy",
 ]
-pca_metrics = data_metrics[0:8].copy()
+pca_metrics = data_metrics[0:2].copy()
 
 metric_dfs = {}
 for metric in data_metrics:
@@ -240,8 +233,8 @@ for metric in data_metrics:
 mean_list = []
 
 
-i = 0
-for foldername in directory_list:
+for i in trange(len(directory_list)):
+    foldername = directory_list[i]
     if (
         foldername != "trajectory_data"
         and foldername != "NOTES.txt"
@@ -249,9 +242,6 @@ for foldername in directory_list:
         and ".xlsx" not in foldername
     ):
         nan_metric = False
-
-        i += 1
-        print(f"Starting analysis {i}/{amount_of_analysises}")
 
         means = {"trj_name": foldername}
 
@@ -272,6 +262,7 @@ for foldername in directory_list:
                     read_values = read_metric_csv_into_list(
                         "data/" + foldername + "/PCA_velocity_metric_values.csv"
                     )
+                    index = 0 if metric == "first_pca_component" else 2
                     values = [j[index] for j in read_values]
                     for value in values:
                         if value < 0:
@@ -319,38 +310,33 @@ for foldername in directory_list:
             mean_list.append(means)
 
 
+cols = [
+    "trj_name",
+    "n_geese",
+    "n_frames",
+    "crosswind_speed",
+    "normalized_velocity_alignment",
+    "velocity_deviation",
+    "first_pca_component",
+    "second_pca_component",
+    "gaussian_entropy",
+    # "sidewise_acceleration_deviation",
+    # "longitudinal_acceleration_deviation",
+    # "first_pca_component_velocity_alignment",
+    # "first_pca_component_z_axis_alignment",
+    # "second_pca_component_horizontal_axis_alignment",
+    # "second_pca_component_z_axis_alignment",
+]
+std_cols = []
+for metric in cols:
+    if metric not in ["trj_name", "n_geese", "n_frames", "crosswind_speed"]:
+        std_cols.append(metric + "_std_dev")
+
+cols += std_cols
+
 mean_df = pd.DataFrame(
     mean_list,
-    columns=[
-        "trj_name",
-        "n_geese",
-        "n_frames",
-        "crosswind_speed",
-        "normalized_velocity_alignment",
-        "normalized_velocity_alignment_std_dev",
-        "velocity_deviation",
-        "velocity_deviation_std_dev",
-        "sidewise_acceleration_deviation",
-        "sidewise_acceleration_deviation_std_dev",
-        "longitudinal_acceleration_deviation",
-        "longitudinal_acceleration_deviation_std_dev",
-        "first_pca_component",
-        "first_pca_component_std_dev",
-        "second_pca_component",
-        "second_pca_component_std_dev",
-        "first_pca_component_velocity_alignment",
-        "first_pca_component_velocity_alignment_std_dev",
-        "second_pca_component_velocity_alignment",
-        "second_pca_component_velocity_alignment_std_dev",
-        "first_pca_component_horizontal_axis_alignment",
-        "first_pca_component_horizontal_axis_alignment_std_dev",
-        "first_pca_component_z_axis_alignment",
-        "first_pca_component_z_axis_alignment_std_dev",
-        "second_pca_component_horizontal_axis_alignment",
-        "second_pca_component_horizontal_axis_alignment_std_dev",
-        "second_pca_component_z_axis_alignment",
-        "second_pca_component_z_axis_alignment_std_dev",
-    ],
+    columns=cols,
 )
 
 
