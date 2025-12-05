@@ -220,11 +220,18 @@ amount_of_analysises = len(directory_list) - 1
 data_metrics = [
     "first_pca_component",
     "second_pca_component",
-    "normalized_velocity_alignment",
-    "velocity_deviation",
     "gaussian_entropy",
+    "parallel_deviation",
+    "lateral_deviation",
+    "vertical_deviation",
 ]
+
 pca_metrics = data_metrics[0:2].copy()
+dev_metrics = {
+    "parallel_deviation": 0,
+    "lateral_deviation": 1,
+    "vertical_deviation": 2,
+}
 
 metric_dfs = {}
 for metric in data_metrics:
@@ -268,7 +275,18 @@ for i in trange(len(directory_list)):
                         if value < 0:
                             print("Value < 0 found, but not expected!")
 
-                # if not PCA metric
+                elif metric in dev_metrics:
+                    metric_index = dev_metrics[metric]
+
+                    read_values = read_metric_csv_into_list(
+                        "data/" + foldername + "/flight_deviation_metric_values.csv"
+                    )
+                    values = [j[metric_index] for j in read_values]
+                    for value in values:
+                        if value < 0:
+                            print("Value < 0 found, but not expected!")
+
+                # if not submetric
                 else:
                     values = read_metric_csv_into_list(
                         "data/" + foldername + "/" + metric + "_values.csv"
@@ -315,11 +333,14 @@ cols = [
     "n_geese",
     "n_frames",
     "crosswind_speed",
-    "normalized_velocity_alignment",
-    "velocity_deviation",
     "first_pca_component",
     "second_pca_component",
     "gaussian_entropy",
+    "parallel_deviation",
+    "lateral_deviation",
+    "vertical_deviation",
+    # "normalized_velocity_alignment",
+    # "velocity_deviation",
     # "sidewise_acceleration_deviation",
     # "longitudinal_acceleration_deviation",
     # "first_pca_component_velocity_alignment",

@@ -10,12 +10,13 @@ from data_engineering.run_analysis import trajectory_analysis
 from data_engineering.metric_calculation import (
     # boltzmann_metric,
     # inverse_exponential_distance_metric,
-    calculate_velocity_deviation,
-    calculate_velocity_alignment,
-    calculate_longitudinal_acceleration_deviation,
-    calculate_sidewise_acceleration_deviation,
+    # calculate_velocity_deviation,
+    # calculate_velocity_alignment,
+    # calculate_longitudinal_acceleration_deviation,
+    # calculate_sidewise_acceleration_deviation,
     calculate_velocity_PCA,
     gaussian_entropy,
+    flight_deviations,
 )
 
 
@@ -30,25 +31,6 @@ for filename in os.listdir(folder_path):
     i += 1
 
     order_metrics = []
-
-    normalized_velocity_alignment_metric = {
-        "name": "normalized_velocity_alignment",
-        "function": calculate_velocity_alignment,
-        "values": [],
-        "color": "forestgreen",
-        "value_space": [0.8, 1],
-        "submetrics": False,
-    }
-    order_metrics.append(normalized_velocity_alignment_metric)
-    velocity_deviation_metric = {
-        "name": "velocity_deviation",
-        "function": calculate_velocity_deviation,
-        "values": [],
-        "color": "green",
-        "value_space": [0, 2.25],
-        "submetrics": False,
-    }
-    order_metrics.append(velocity_deviation_metric)
 
     # PCA velocity metrics
     PCA_velocity_metric = {
@@ -85,10 +67,25 @@ for filename in os.listdir(folder_path):
         "function": gaussian_entropy,
         "values": [],
         "color": "darkred",
-        "value_space": [],
+        "value_space": [-5, 5],
         "submetrics": False,
     }
     order_metrics.append(gaussian_entropy_metric)
+    flight_deviation_metric = {
+        "name": "flight_deviation_metric",
+        "function": flight_deviations,
+        "values": [],
+        "color": "forestgreen",
+        "value_space": [[0, 1.5], [0, 3], [0, 1.5]],
+        "submetrics": True,
+        "n_submetrics": 3,
+        "submetric_names": [
+            "parallel_deviation",
+            "lateral_deviation",
+            "vertical_deviation",
+        ],
+    }
+    order_metrics.append(flight_deviation_metric)
 
     if i <= amount_of_analysises:
         print(f"Starting with analysis {i} / {amount_of_analysises}", flush=True)

@@ -196,7 +196,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
         return normed_vector
 
     if len(geese) == 0:
-        return tuple([np.nan for _ in range(8)])
+        return tuple([np.nan for _ in range(4)])
 
     velocities = np.array(
         [
@@ -210,7 +210,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
-        return tuple([np.nan for _ in range(8)])
+        return tuple([np.nan for _ in range(4)])
 
     # set up PCA
     pca = PCA(n_components=2)
@@ -303,6 +303,56 @@ def gaussian_entropy(geese: dict, regularize=1e-10) -> float:
 
     H = 0.5 * (k * (1.0 + np.log(2 * np.pi)) + logdet)
     return H  # in nats
+
+
+def flight_deviations(geese: dict) -> (float, float, float):
+
+    def deviation_along_axis(vector, velocities):
+        norm = np.linalg.norm(vector)
+        vector = vector / np.linalg.norm(vector)
+
+        # project points onto vector
+        projections = np.dot(velocities, vector)
+
+        # calculate deviations
+        deviation = np.std(projections)
+
+        return deviation
+
+    def horizontal_perpendicular(v):
+        vx, vy, vz = v
+        if vx == 0 and vy == 0:
+            # v is vertical → pick any horizontal direction
+            return np.array([1.0, 0.0, 0.0])
+        vector = np.array([-vy, vx, 0.0])
+        normed_vector = vector / np.linalg.norm(vector)
+        return normed_vector
+
+    if len(geese) == 0:
+        return tuple([np.nan for _ in range(3)])
+
+    velocities = np.array(
+        [
+            geese[trj_id]["velocity"]
+            for trj_id in geese
+            if geese[trj_id]["velocity_norm"] != 0
+        ]
+    )
+    if len(velocities) == 0:
+        return tuple([np.nan for _ in range(3)])
+    # ============================================================
+    # actual function
+
+    average_velocity = np.mean(velocities, axis=0)
+    lateral_vector = horizontal_perpendicular(average_velocity)
+    vertical_vector = np.array([0, 0, 1])
+
+    # orientation relative to flight
+    parallel_deviation = deviation_along_axis(average_velocity, velocities)
+    lateral_deviation = deviation_along_axis(lateral_vector, velocities)
+    vertical_deviation = deviation_along_axis(vertical_vector, velocities)
+
+    return (parallel_deviation, lateral_deviation, vertical_deviation)
 
 
 def calculate_longitudinal_acceleration_deviation(geese: dict) -> float:
