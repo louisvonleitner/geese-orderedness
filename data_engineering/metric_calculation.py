@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.decomposition import PCA
-from data_engineering.clean_trajectory import clean_data
 
 
 def read_trajectory_data(filename, column_numbers, column_names):
@@ -254,13 +253,13 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     return (
         first_component_variance,
-        first_component_velocity_alignment,
-        first_component_xy_alignment,
-        first_component_z_alignment,
+        # first_component_velocity_alignment,
+        # first_component_xy_alignment,
+        # first_component_z_alignment,
         second_component_variance,
-        second_component_velocity_alignment,
-        second_component_xy_alignment,
-        second_component_z_alignment,
+        # second_component_velocity_alignment,
+        # second_component_xy_alignment,
+        # second_component_z_alignment,
     )
 
 
