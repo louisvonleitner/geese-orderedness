@@ -288,6 +288,10 @@ def gaussian_entropy(geese: dict, regularize=1e-10) -> float:
     X = np.asarray(X)
     if X.ndim != 2:
         raise ValueError("X must be 2D: shape (N, k)")
+
+    if len(X) < 3:
+        return np.nan
+
     N, k = X.shape
     # sample covariance (unbiased, ddof=1). ML would use ddof=0; either is OK for plug-in.
     Sigma = np.cov(X, rowvar=False, ddof=1)
