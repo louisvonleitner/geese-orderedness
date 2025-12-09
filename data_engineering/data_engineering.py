@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 
-from data_engineering.cleaning import load_and_clean_trajectory
+from data_engineering.cleaning import (
+    load_and_clean_trajectory,
+    filter_trajectories_more,
+)
 
 from data_engineering.metric_calculation import (
     calculate_velocity_alignment,
@@ -140,7 +143,6 @@ def apply_metrics(frame_data: pd.DataFrame) -> pd.DataFrame:
     # 1. Define the metric functions dictionary
     metrics = {
         "velocity_alignment": calculate_velocity_alignment,
-        "velocity_deviation": calculate_velocity_deviation,
         "pca": calculate_velocity_PCA,
         "gaussian_entropy": gaussian_entropy,
         "flight_deviations": flight_deviations,
@@ -203,9 +205,15 @@ def engineer_trajectory_data(filepath: str):
     # load and clean trajectories. now sorted by geese
     df = load_and_clean_trajectory(filepath)
 
+    # filtering out too instable flocks
+    if df["n_geese_whole_trj"].iloc[0] <= 4:
+        return None
+
     # turn into frame based DataFrame
     frame_data = make_frame_based(df=df)
 
     frame_data = apply_metrics(frame_data)
+
+    frame_data = filter_trajectories_more(frame_data)
 
     return frame_data

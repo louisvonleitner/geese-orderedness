@@ -195,7 +195,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
         return normed_vector
 
     if len(geese) == 0:
-        return tuple([np.nan for _ in range(4)])
+        return tuple([np.nan for _ in range(2)])
 
     velocities = np.array(
         [
@@ -209,7 +209,7 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
 
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
-        return tuple([np.nan for _ in range(4)])
+        return tuple([np.nan for _ in range(2)])
 
     # set up PCA
     pca = PCA(n_components=2)

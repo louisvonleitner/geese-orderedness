@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from tqdm import trange
+import traceback
 
 from data_engineering.data_engineering import engineer_trajectory_data
 
@@ -35,22 +36,19 @@ def execute_data_engineering(trj_folder: str, saving_folder: str):
             # Ensure engineer_trajectory_data function handles loading the file
             engineered_df = engineer_trajectory_data(input_path)
 
-            # 5. Construct full output path
-            output_path = os.path.join(saving_folder, filename)
+            if type(engineered_df) is pd.DataFrame:
 
-            # 6. Save the dataframe
-            engineered_df.to_csv(output_path, index=False)
+                # 5. Construct full output path
+                output_path = os.path.join(
+                    saving_folder, os.path.splitext(filename)[0] + ".csv"
+                )
+
+                # 6. Save the dataframe
+                engineered_df.to_csv(output_path, index=False)
 
         except Exception as e:
             print(f"Error processing {filename}: {e}")
-
-        # engineered_df = engineer_trajectory_data(input_path)
-
-        # # 5. Construct full output path
-        # output_path = os.path.join(saving_folder, filename)
-
-        # # 6. Save the dataframe
-        # engineered_df.to_csv(output_path, index=False)
+            traceback.print_exc()
 
     print("Done!")
 

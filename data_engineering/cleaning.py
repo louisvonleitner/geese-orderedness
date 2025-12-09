@@ -96,7 +96,7 @@ def clean_data(df: pd.DataFrame):
         cleaned_df = pd.concat(individual_geese_trjs)
 
     else:
-        return df, individual_geese_trjs, 0
+        return df, 0, 0
 
     n_trjs = len(individual_geese_trjs)
 
@@ -167,3 +167,29 @@ def load_and_clean_trajectory(trj_path: str):
     df["video_length"] = video_length
 
     return df
+
+
+def filter_trajectories_more(df):
+
+    # splitting metrics into own columns
+    if "velocity_deviation" in df.columns:
+        df = df.drop("velocity_deviation")
+
+    df["first_pca_component"], df["second_pca_component"] = (
+        df["pca"].str[0],
+        df["pca"].str[1],
+    )
+    df["parallel_deviation"], df["lateral_deviation"], df["vertical_deviation"] = (
+        df["flight_deviations"].str[0],
+        df["flight_deviations"].str[1],
+        df["flight_deviations"].str[2],
+    )
+
+    # filter out very messy data
+    mean_first_pca = df["first_pca_component"].mean()
+
+    if mean_first_pca < 4:
+        return df
+
+    else:
+        return None
