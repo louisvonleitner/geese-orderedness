@@ -204,12 +204,14 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
             if geese[trj_id]["velocity_norm"] != 0
         ]
     )
+    # handling exceptions
+    if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 3:
+        return tuple([np.nan for _ in range(2)])
+    
+    # average velocity
     average_velocity = np.mean(velocities, axis=0)
     average_velocity_normed = average_velocity / np.linalg.norm(average_velocity)
 
-    # handling exceptions
-    if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 2:
-        return tuple([np.nan for _ in range(2)])
 
     # set up PCA
     pca = PCA(n_components=2)

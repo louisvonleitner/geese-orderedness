@@ -40,11 +40,12 @@ def execute_data_engineering(trj_folder: str, saving_folder: str):
 
                 # 5. Construct full output path
                 output_path = os.path.join(
-                    saving_folder, os.path.splitext(filename)[0] + ".csv"
+                    saving_folder, os.path.splitext(filename)[0] + ".pkl"
                 )
 
                 # 6. Save the dataframe
-                engineered_df.to_csv(output_path, index=False)
+                engineered_df = engineered_df.reset_index(drop=True)
+                engineered_df.to_pickle(output_path)
 
         except Exception as e:
             print(f"Error processing {filename}: {e}")

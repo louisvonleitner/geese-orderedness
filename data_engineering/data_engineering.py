@@ -93,15 +93,15 @@ def make_frame_based(df: pd.DataFrame) -> pd.DataFrame:
         n_geese=("trj_id", "count"),
         # calculate mean velocity
         # Aggregate all geese positional data
-        geese_positions=("position", list),
-        geese_velocities=("velocity", list),
-        geese_accelerations=("acceleration", list),
+        positions=("position", list),
+        velocities=("velocity", list),
+        accelerations=("acceleration", list),
     )
 
     # compute mean velocity vector
     # Apply np.mean to the list of vectors in each cell
     # axis=0 collapses the N geese into 1 average vector
-    frame_data["average_velocity"] = frame_data["geese_velocities"].apply(
+    frame_data["average_velocity"] = frame_data["velocities"].apply(
         lambda geese_list: (
             np.mean(np.stack(geese_list), axis=0)
             if len(geese_list) > 0
@@ -111,13 +111,13 @@ def make_frame_based(df: pd.DataFrame) -> pd.DataFrame:
 
     # transform relative acceleration into cartesian coordinate system
     # We use zip() to pair the specific velocity and acceleration list for each row simultaneously.
-    frame_data["geese_accelerations"] = [
+    frame_data["accelerations"] = [
         [
             acceleration_cartesian(row_avg_vel, single_goose_acc)
             for single_goose_acc in row_acc_list
         ]
         for row_avg_vel, row_acc_list in zip(
-            frame_data["average_velocity"], frame_data["geese_accelerations"]
+            frame_data["average_velocity"], frame_data["accelerations"]
         )
     ]
 
@@ -157,8 +157,8 @@ def apply_metrics(frame_data: pd.DataFrame) -> pd.DataFrame:
 
         # Build the geese dictionary for this frame
         for i in range(n_geese):
-            position = row["geese_positions"][i]
-            velocity = row["geese_velocities"][i]
+            position = row["positions"][i]
+            velocity = row["velocities"][i]
 
             goose = {
                 "trj_id": i,
