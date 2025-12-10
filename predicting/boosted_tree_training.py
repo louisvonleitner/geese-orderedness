@@ -25,26 +25,26 @@ def prepare_data(filepath: str):
 
     # cover random birds of the data except for n
     n = 3
-    train_data = mask_geese(train_data, n)
+    train_data = mask_geese(train_data, n)  # these are now numpy arrays
     test_data = mask_geese(test_data, n)
     validation_data = mask_geese(validation_data, n)
 
-    X_train = train_data[input_features].to_numpy()
-    y_train = train_data[target_feature].to_numpy()
+    X_train = train_data[:, :-1]
+    y_train = train_data[:, -1]
     dtrain = xgb.DMatrix(X_train, label=y_train)
 
-    X_val = validation_data[input_features].to_numpy()
-    y_val = validation_data[target_feature].to_numpy()
+    X_val = validation_data[:, :-1]
+    y_val = validation_data[:, -1]
     dval = xgb.DMatrix(X_val, label=y_val)
 
-    X_test = test_data[input_features].to_numpy()
-    y_test = test_data[target_feature].to_numpy()
+    X_test = test_data[:, :-1]
+    y_test = test_data[:, -1]
     dtest = xgb.DMatrix(X_test, label=y_test)
 
     return dtrain, dval, dtest
 
 
-def train_tree(filepath: str, params: dict, dtrain, dval, dtest):
+def train_tree(params: dict, num_boost_rounds: int, dtrain, dval, dtest):
 
     # ================================================================
     # train the model
@@ -54,18 +54,18 @@ def train_tree(filepath: str, params: dict, dtrain, dval, dtest):
             params,
             dtrain,
             tree_method="gpu_hist",
-            num_boost_round=params["num_boost_rounds"],
+            num_boost_round=num_boost_rounds,
             evals=[(dtrain, "train"), (dval, "validation")],
-            early_stopping_rounds=early_stop,
+            early_stopping_rounds=50,
             verbose_eval=50,
         )
     else:
         bst = xgb.train(
             params,
             dtrain,
-            num_boost_round=params["num_boost_rounds"],
+            num_boost_round=num_boost_rounds,
             evals=[(dtrain, "train"), (dval, "validation")],
-            early_stopping_rounds=early_stop,
+            early_stopping_rounds=50,
             verbose_eval=50,
         )
 
@@ -108,12 +108,11 @@ def grid_search(filepath):
                     flush=True,
                 )
                 params = {
-                    "verbosity": 2,
+                    "verbosity": 1,
                     "device": device,
                     # learning parameters
                     "objective": "reg:squarederror",
                     "eval_metric": "mae",
-                    "num_boost_rounds": num_boost_rounds,
                     "eta": lr,
                     # tree parameters
                     "max_depth": max_depth,
@@ -125,7 +124,7 @@ def grid_search(filepath):
                 }
 
                 # train model
-                mae = train_tree(data, params, dtrain, dval, dtest)
+                mae = train_tree(params, num_boost_rounds, dtrain, dval, dtest)
 
                 result = {
                     "mean_absolute_error": mae,

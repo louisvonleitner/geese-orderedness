@@ -31,7 +31,7 @@ def load_data(filepath, features: list, temporal=False):
 
     df = df[features]
 
-    print(type(df["positions"].iloc[0]), flush=True)
+    # print(type(df["positions"].iloc[0]), flush=True)
 
     RANDOM_STATE = 42
 
@@ -68,6 +68,34 @@ def load_data(filepath, features: list, temporal=False):
     return train_df, test_df, validation_df
 
 
+def flatten_row(row: pd.Series) -> np.ndarray:
+    """
+    Flattens a complex Pandas Series (row) into a single 1D NumPy array.
+    It flattens any nested NumPy arrays found within the row, while
+    preserving simple scalar values.
+    """
+    flat_features = []
+
+    for entry in row.values:
+
+        #  simple scalar
+        if isinstance(entry, (float, int)):
+            flat_features.append(entry)
+
+        # nested numpy array
+        elif isinstance(entry, np.ndarray):
+            # Flatten the nested array and extend the features list
+            # We use .tolist() to convert the flattened array for easy list extension
+            flat_features.extend(entry.flatten().tolist())
+
+        # list
+        elif isinstance(entry, list):
+            # If a list is found, assume it needs to be flattened too
+            flat_features.extend(entry)
+
+    return np.array(flat_features)
+
+
 def n_geese_prediction_mask(initial_row: pd.Series, n_visible_geese):
 
     row = initial_row.copy()
@@ -76,15 +104,19 @@ def n_geese_prediction_mask(initial_row: pd.Series, n_visible_geese):
     random_bird_idx = np.random.choice(
         range(n_geese), n_visible_geese, replace=False, p=None
     )
+    # print(random_bird_idx)
 
     # visible positions
-    row["positions"] = row["positions"].iloc[random_bird_idx]
+    row["positions"] = np.array(row["positions"])[random_bird_idx]
     # visible velocities
-    row["velocities"] = row["velocities"].iloc[random_bird_idx]
+    row["velocities"] = np.array(row["velocities"])[random_bird_idx]
     # visible accelerations
-    row["accelerations"] = row["accelerations"].iloc[random_bird_idx]
+    row["accelerations"] = np.array(row["accelerations"])[random_bird_idx]
 
-    return row
+    # flatten row
+    flat_row = flatten_row(row)
+
+    return flat_row
 
 
 def mask_geese(df: pd.DataFrame, n: int):
@@ -94,4 +126,5 @@ def mask_geese(df: pd.DataFrame, n: int):
         axis=1,
     )
 
-    return masked_data
+    final_data = np.array(masked_data.tolist())
+    return final_data
