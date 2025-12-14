@@ -5,4 +5,7 @@
 *.csv
 
 # ignore the data bcs it's too big
-data/
+data/metric_data
+data/training_data
+data/trajectory_data
+data/trajectory_folder_data
