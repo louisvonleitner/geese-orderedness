@@ -16,3 +16,6 @@ First though, it is helpful to make a quick small example of predicting structur
 Bird flocks vary between 4-100 individuals per flock. Given the positions, velocities and accelerations of 3 birds inside a flock, can we predict how many birds are in the flock?
 Yes, with mean error of 1,8 birds and 95% explained variance using gradient boosted trees. This points in the direction of predictability of structure in geese flocks.
 
+Next up:
+Trying Transformers at predicting changes in order...
+
