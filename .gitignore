@@ -3,6 +3,10 @@
 
 # ignore csv files
 *.csv
+*.pkl
+
+# models are too big
+*.json
 
 # ignore the data bcs it's too big
 data/metric_data
