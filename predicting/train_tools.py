@@ -65,7 +65,7 @@ def load_data(filepath, features: list, temporal=False):
         flush=True,
     )
 
-    return train_df, test_df, validation_df
+    return train_df, validation_df, test_df
 
 
 def flatten_row(row: pd.Series) -> np.ndarray:

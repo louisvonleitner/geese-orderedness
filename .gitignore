@@ -6,3 +6,6 @@
 
 # ignore the data bcs it's too big
 data/
+
+# ignore models too biiiig
+*.json
