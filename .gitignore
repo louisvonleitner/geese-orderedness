@@ -9,3 +9,7 @@ data/
 
 # ignore models too biiiig
 *.json
+*.pyc
+
+# ignore out files
+*.out

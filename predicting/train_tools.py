@@ -79,7 +79,7 @@ def flatten_row(row: pd.Series) -> np.ndarray:
     for entry in row.values:
 
         #  simple scalar
-        if isinstance(entry, (float, int)):
+        if isinstance(entry, (float, int, np.int64)):
             flat_features.append(entry)
 
         # nested numpy array
@@ -107,7 +107,7 @@ def n_geese_prediction_mask(initial_row: pd.Series, n_visible_geese):
     # print(random_bird_idx)
 
     # visible positions
-    row["positions"] = np.array(row["positions"])[random_bird_idx]
+    row["centered_positions"] = np.array(row["centered_positions"])[random_bird_idx]
     # visible velocities
     row["velocities"] = np.array(row["velocities"])[random_bird_idx]
     # visible accelerations

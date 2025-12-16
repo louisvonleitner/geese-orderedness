@@ -22,7 +22,9 @@ def prepare_data(filepath: str):
     target_feature = "n_geese"
 
     # load data
-    train_data, validation_data, test_data = load_data(filepath, features)
+    train_data = pd.read_pickle("data/training_data/train_data.pkl")
+    validation_data = pd.read_pickle("data/training_data/validation_data.pkl")
+    test_data = pd.read_pickle("data/training_data/test_data.pkl")
 
     # cover random birds of the data except for n
     n = 3
@@ -65,7 +67,7 @@ def train_tree(params: dict, num_boost_rounds: int, dtrain, dval):
     res = {
         "mae": mean_absolute_error(y_pred, y_true),
         "max_err": max_error(y_pred, y_true),
-        "r2": r2_score(y_pred, y_true)
+        "r2": r2_score(y_pred, y_true),
     }
 
     # ====================================================================
@@ -129,9 +131,8 @@ def grid_search(filepath):
                     "num_trees": num_boost_rounds,
                     "max_depth": max_depth,
                 }
-                result = result | res 
+                result = result | res
                 results.append(result)
-
 
     results = pd.DataFrame(results)
 
@@ -164,7 +165,6 @@ def tree_training_wrapper(filepath):
 
     print("Starting Model Training", flush=True)
 
-                
     params = {
         "verbosity": 1,
         "device": "cuda:1",
@@ -200,7 +200,3 @@ def tree_training_wrapper(filepath):
     print("Saved model!")
 
     return results
-
-
-
-
