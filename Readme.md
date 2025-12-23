@@ -14,8 +14,21 @@ This is because if we can predict the change in order of the system, then there 
 
 First though, it is helpful to make a quick small example of predicting structure:
 Bird flocks vary between 4-100 individuals per flock. Given the positions, velocities and accelerations of 3 birds inside a flock, can we predict how many birds are in the flock?
-Yes, with mean error of 1,8 birds and 95% explained variance using gradient boosted trees. This points in the direction of predictability of structure in geese flocks.
+Somewhat, but not excessively. A naive predictor estimating the mode of number of birds every time has a validation MAE of 0.9 x standard deviations.
+The best gradient boosted tree prediction model I could come up with only achieved 0.45 x standard deviations. Transformers are around the same mark.
+
+As standard deviation is around 16, that means that the predictions are off by about 8 birds, so by almost 10% of the range of values. 
+So, one could say that this prediction task is somewhat solveable, but I have not managed to solve it to a sufficiently good extent.
+
+A pattern that happened with Transformers and Gradient Boosted Trees is that when choosing architecture too big, the model would overfit on the train loss without impacting validation loss. 
+This seems to be because the model learns the general trends, but when well generalizable patterns are not exploitable any more, it starts overfitting.
+
+It seems to be that this prediction task is very complex and only knowing the positions of 3 geese is not enough. (Flock sizes vary between 5-100 birds)
+Having tried with 4 and 5 visible geese to the model, results are not much different, only improving slightly. None of the architectures used so far were able 
+to reliably forecast the number of geese. 
+Even when increasing the number of datapoints by generating more different samples through masking from a single frame (point in time), the performance did not change at all. 
+This leads me to believe that this prediction task is just not perfectly solveable because of a high ratio of noise to signal.
 
 Next up:
-Trying Transformers at predicting changes in order...
+Trying Transformers at predicting changes in order over time...
 
