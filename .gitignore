@@ -11,5 +11,6 @@ data/
 *.json
 *.pyc
 
-# ignore out files
+# ignore out and log files
 *.out
+*.log
