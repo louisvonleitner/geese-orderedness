@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
+import ast
+import re
+import pickle
 
 import torch
 
 from sklearn.model_selection import train_test_split
-
-import pandas as pd
-import numpy as np
-import ast
-import re
 
 
 def load_data(filepath, features: list, temporal=False):
@@ -68,6 +66,61 @@ def load_data(filepath, features: list, temporal=False):
     return train_df, validation_df, test_df
 
 
+def normalize_dataframe(df: pd.DataFrame, features, multidim_features):
+
+    with open("data/training_data/number_of_geese_data/data_norm.pkl", "rb") as f:
+        norm_dict = pickle.load(f)
+
+    means = norm_dict["means"]
+    stds = norm_dict["stds"]
+
+    for feature in features:
+        m = means[feature]
+        s = stds[feature]
+
+        if feature in multidim_features:
+            # Use apply to normalize each row's array/list
+            df[feature] = df[feature].apply(lambda x: (np.array(x) - m) / (s + 1e-8))
+        else:
+            # Handle standard scalar columns
+            df[feature] = (df[feature] - m) / (s + 1e-8)
+
+    return df
+
+
+def get_std_n_geese():
+
+    with open("data/training_data/number_of_geese_data/data_norm.pkl", "rb") as f:
+        norm_dict = pickle.load(f)
+
+    means = norm_dict["means"]
+    stds = norm_dict["stds"]
+
+    return stds["n_geese"]
+
+
+def inverse_normalization_n_geese(row: pd.Series):
+    """
+    row has form: [centered_positions], [velocities], [accelerations], [n_geese]
+    """
+    with open("data/training_data/number_of_geese_data/data_norm.pkl", "rb") as f:
+        norm_dict = pickle.load(f)
+
+    means = norm_dict["means"]
+    stds = norm_dict["stds"]
+
+    features = row.index
+    multidim_features = ["centered_positions", "velocities", "accelerations"]
+
+    for feature in features:
+        m = means[feature]
+        s = stds[feature]
+
+        row[feature] = np.array(row[feature]) * (s + 1e-8) + m
+
+    return row
+
+
 def flatten_row(row: pd.Series) -> np.ndarray:
     """
     Flattens a complex Pandas Series (row) into a single 1D NumPy array.
@@ -96,35 +149,54 @@ def flatten_row(row: pd.Series) -> np.ndarray:
     return np.array(flat_features)
 
 
-def n_geese_prediction_mask(initial_row: pd.Series, n_visible_geese):
+def n_geese_prediction_mask(
+    initial_row: pd.Series, n_visible_geese, num_created_samples=5
+):
+    rows = []
+    # 5 (min n birds) choose 3 = 10, we take 5 samples per row
+    for i in range(num_created_samples):
+        row = initial_row.copy()
 
-    row = initial_row.copy()
-    n_geese = row["n_geese"]
+        if len(row["centered_positions"]) != len(row["velocities"]) or len(
+            row["velocities"]
+        ) != len(row["accelerations"]):
+            raise Exception(
+                "Missmatch in number of positions, velocities and accelerations!"
+            )
 
-    random_bird_idx = np.random.choice(
-        range(n_geese), n_visible_geese, replace=False, p=None
-    )
-    # print(random_bird_idx)
+        # Choose random geese
+        random_bird_idx = np.random.choice(
+            range(len(row["centered_positions"])),
+            n_visible_geese,
+            replace=False,
+            p=None,
+        )
+        # print(random_bird_idx)
 
-    # visible positions
-    row["centered_positions"] = np.array(row["centered_positions"])[random_bird_idx]
-    # visible velocities
-    row["velocities"] = np.array(row["velocities"])[random_bird_idx]
-    # visible accelerations
-    row["accelerations"] = np.array(row["accelerations"])[random_bird_idx]
+        # visible positions
+        row["centered_positions"] = np.array(row["centered_positions"])[random_bird_idx]
+        # visible velocities
+        row["velocities"] = np.array(row["velocities"])[random_bird_idx]
+        # visible accelerations
+        row["accelerations"] = np.array(row["accelerations"])[random_bird_idx]
 
-    # flatten row
-    flat_row = flatten_row(row)
+        # flatten row
+        flat_row = flatten_row(row)
 
-    return flat_row
+        rows.append(flat_row)
+
+    return rows
 
 
-def mask_geese(df: pd.DataFrame, n: int):
+def mask_geese(df: pd.DataFrame, n: int, num_created_samples: int):
 
     masked_data = df.apply(
-        lambda row: n_geese_prediction_mask(row, n),
+        lambda row: n_geese_prediction_mask(row, n, num_created_samples),
         axis=1,
     )
 
-    final_data = np.array(masked_data.tolist())
+    exploded_data = masked_data.explode()
+
+    final_data = np.vstack(exploded_data.tolist())
+
     return final_data

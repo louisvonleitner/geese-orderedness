@@ -207,11 +207,10 @@ def calculate_velocity_PCA(geese: dict) -> tuple:
     # handling exceptions
     if velocities.size == 0 or len(velocities.shape) != 2 or velocities.shape[0] < 3:
         return tuple([np.nan for _ in range(2)])
-    
+
     # average velocity
     average_velocity = np.mean(velocities, axis=0)
     average_velocity_normed = average_velocity / np.linalg.norm(average_velocity)
-
 
     # set up PCA
     pca = PCA(n_components=2)
@@ -288,6 +287,7 @@ def gaussian_entropy(geese: dict, regularize=1e-10) -> float:
     X = velocities.copy()
     X = np.asarray(X)
     if X.ndim != 2:
+        return np.nan
         raise ValueError("X must be 2D: shape (N, k)")
 
     if len(X) < 3:
@@ -432,7 +432,7 @@ def save_metric_output(order_metrics: list, average_directions, filename: str):
     # make sure folder exists
     for metric in order_metrics:
         os.makedirs(
-            os.path.dirname(f"data/{filename}/{metric["name"]}_values.csv"),
+            os.path.dirname(f"""data/{filename}/{metric['name']}_values.csv"""),
             exist_ok=True,
         )
 
@@ -442,7 +442,7 @@ def save_metric_output(order_metrics: list, average_directions, filename: str):
 
         # write values into csv file
         with open(
-            f"data/{filename}/{metric["name"]}_values.csv",
+            f"""data/{filename}/{metric['name']}_values.csv""",
             "w",
             newline="",
             encoding="utf-8",

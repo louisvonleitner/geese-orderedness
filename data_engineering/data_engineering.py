@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from scipy.spatial.transform import Rotation
 
 from data_engineering.cleaning import (
     load_and_clean_trajectory,
@@ -89,9 +90,8 @@ def make_frame_based(df: pd.DataFrame) -> pd.DataFrame:
     grouped_frames = df.groupby("frame")
 
     frame_data = grouped_frames.agg(
-        # Count the number of geese in the frame
+        # n_geese
         n_geese=("trj_id", "count"),
-        # calculate mean velocity
         # Aggregate all geese positional data
         positions=("position", list),
         velocities=("velocity", list),
@@ -140,7 +140,7 @@ def apply_metrics(frame_data: pd.DataFrame) -> pd.DataFrame:
         DataFrame with added column features.
     """
 
-    # 1. Define the metric functions dictionary
+    # Define the metric functions dictionary
     metrics = {
         "velocity_alignment": calculate_velocity_alignment,
         "pca": calculate_velocity_PCA,
@@ -148,11 +148,11 @@ def apply_metrics(frame_data: pd.DataFrame) -> pd.DataFrame:
         "flight_deviations": flight_deviations,
     }
 
-    # 2. Define a helper function to process a SINGLE row
+    # helper function
     def process_row(row):
         geese = {}
 
-        # safely get the number of geese for this specific row
+        # get number of geese for row
         n_geese = row["n_geese"]
 
         # Build the geese dictionary for this frame
@@ -176,14 +176,60 @@ def apply_metrics(frame_data: pd.DataFrame) -> pd.DataFrame:
 
         return pd.Series(row_results)
 
-    # 3. Apply the helper to every row (axis=1)
+    # Apply the helper to every row (axis=1)
     # This returns a new DataFrame containing only the metric columns
     metric_features = frame_data.apply(process_row, axis=1)
 
-    # 4. Join the new metrics back to the original DataFrame
+    # Join the new metrics back to the original DataFrame
     result_df = pd.concat([frame_data, metric_features], axis=1)
 
     return result_df
+
+
+def rotate_geese_towards_north(row):
+
+    def get_rotation_matrix(average_velocity):
+
+        v = average_velocity / np.linalg.norm(average_velocity)
+
+        # align geese with flying north
+        north = np.array([0, 1, 0])
+
+        # get rotaion matrix that needs to applied to all vectors
+        rotation, _ = Rotation.align_vectors([north], [v])
+
+        return rotation
+
+    # build rotation matrix
+    rotation = get_rotation_matrix(row["average_velocity"])
+
+    # apply rotation to all vectors so the whole system faces north
+    row["positions"] = rotation.apply(row["positions"])
+    row["centered_positions"] = rotation.apply(row["centered_positions"])
+    row["average_position"] = rotation.apply(row["average_position"])
+    row["velocities"] = rotation.apply(row["velocities"])
+    row["average_velocity"] = rotation.apply(row["average_velocity"])
+    row["accelerations"] = rotation.apply(row["velocities"])
+
+    return row
+
+
+def center_positions(row):
+
+    # extract positions
+    positions = row["positions"]
+
+    # calculate mean
+    mean_position = np.mean(positions, axis=0)
+
+    # center
+    centered_positions = positions - mean_position
+
+    # adjust row
+    row["centered_positions"] = centered_positions
+    row["average_position"] = mean_position
+
+    return row
 
 
 def engineer_trajectory_data(filepath: str):
@@ -205,6 +251,9 @@ def engineer_trajectory_data(filepath: str):
     # load and clean trajectories. now sorted by geese
     df = load_and_clean_trajectory(filepath)
 
+    if df is None:
+        return None
+
     # filtering out too instable flocks
     if df["n_geese_whole_trj"].iloc[0] <= 4:
         return None
@@ -215,5 +264,23 @@ def engineer_trajectory_data(filepath: str):
     frame_data = apply_metrics(frame_data)
 
     frame_data = filter_trajectories_more(frame_data)
+
+    if isinstance(frame_data, pd.DataFrame):
+        prev_len = len(frame_data)
+        error_rows = frame_data[
+            frame_data["n_geese"] != frame_data["positions"].apply(len)
+        ]
+        if len(error_rows) > 0:
+            raise Exception("Number of positions and n_geese does not match!")
+
+        frame_data = frame_data[frame_data["positions"].apply(len) > 4]
+        frame_data = frame_data.dropna()
+        print(
+            f"Dropped {prev_len - len(frame_data)} N/A and short values out of {prev_len}."
+        )
+
+        frame_data = frame_data.apply(center_positions, axis=1)
+
+        frame_data = frame_data.apply(rotate_geese_towards_north, axis=1)
 
     return frame_data

@@ -96,7 +96,7 @@ def clean_data(df: pd.DataFrame):
         cleaned_df = pd.concat(individual_geese_trjs)
 
     else:
-        return df, 0, 0
+        return None, 0, 0
 
     n_trjs = len(individual_geese_trjs)
 
@@ -157,6 +157,9 @@ def load_and_clean_trajectory(trj_path: str):
     df, n_trjs, video_length = clean_data(
         df=df,
     )
+
+    if df is None:
+        return None
 
     print(
         f"Cleaning removed {n_trjs_before_cleaning - n_trjs} / {n_trjs_before_cleaning} bad trajectories."

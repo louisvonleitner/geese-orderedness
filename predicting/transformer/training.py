@@ -3,15 +3,19 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 import os
+import optuna
 
 import torch
 import torch.nn as nn
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
-from torch.nn import MSELoss
+from torch.nn import MSELoss, L1Loss
 
 from predicting.transformer.model import goose_number_transformer
-from predicting.transformer.learning_scheduler import get_cosine_with_warmup_scheduler
+from predicting.transformer.learning_scheduler import (
+    get_cosine_with_warmup_scheduler,
+    EarlyStopper,
+)
 from predicting.transformer.data_engineering import create_dataloaders
 
 
@@ -88,7 +92,7 @@ def validate(model, val_loader, loss_fn, device):
 def save_training(model, train_losses, val_losses, params):
 
     os.makedirs("./predicting/results/transformer/", exist_ok=True)
-    os.makedirs("./predicting/models//transformers/", exist_ok=True)
+    os.makedirs("./predicting/models/transformers/", exist_ok=True)
     time_now = datetime.now().strftime("%m%d_%H%M%S")
 
     loss_dict = {"train_loss": train_losses, "val_loss": val_losses}
@@ -101,7 +105,7 @@ def save_training(model, train_losses, val_losses, params):
     params["timestamp"] = time_now
     model_parameters = pd.DataFrame([params])
     model_parameters.to_csv(
-        f"./predicting/results/transformer/model_params.csv",
+        f"./predicting/results/transformer/5_geese_transformer_model_params.csv",
         mode="a",
         header=False,
         index=False,
@@ -112,38 +116,46 @@ def save_training(model, train_losses, val_losses, params):
     print("Model saved", flush=True)
 
 
-def training():
+def training(params, trial=None):
 
+    num_epochs = 100
     # ------------------------
     # transformer architecture
-    n_known_geese = 3
-    d_model = 512
-    n_heads = 16
-    n_layers = 16
+    n_known_geese = 5
+    num_created_samples = 1
+    d_model = params["d_model"]
+    n_heads = params["n_heads"]
+    n_layers = params["n_layers"]
     # ------------------------
     # defining hyperparameters
     # learning
-    num_epochs = 30
-    batch_size = 64
-    # optimizer
-    lr = 1e-4
-    beta_1 = 0.9
-    beta_2 = 0.999
-    epsilon = 1e-8
-    weight_decay = 0
+    batch_size = params["batch_size"]
+    lr = params["lr"]
+    min_lr = params["min_lr"]
+    weight_decay = params["weight_decay"]
+    beta_1 = params["beta_1"]
+    beta_2 = params["beta_2"]
+    dropout = params["dropout"]
+    epsilon = 0.000001
+    # ------------------------
+    # load dataloaders
+    print("Loading data")
+    train_loader, val_loader = create_dataloaders(
+        batch_size, n_known_geese, num_created_samples
+    )
     # ------------------------
     # selecting device cuda
     torch.cuda.set_device(0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # ------------------------
-    print("Loading Data", flush=True)
-    # Create DataLoaders
-    train_loader, val_loader, test_loader = create_dataloaders(batch_size=batch_size)
-    # ------------------------
     print("Initializing model...", flush=True)
     # initiating model, optimizer, scheduler and loss function
     model = goose_number_transformer(
-        n_known_geese=n_known_geese, d_model=d_model, n_heads=n_heads, n_layers=n_layers
+        n_known_geese=n_known_geese,
+        d_model=d_model,
+        n_heads=n_heads,
+        n_layers=n_layers,
+        dropout=dropout,
     )
     model.to(device)
     # optimizer
@@ -156,9 +168,8 @@ def training():
     )
     # scheduler
     # hyperparameters
-    warmup_steps = 10000
     total_steps = int(num_epochs * len(train_loader.dataset) / batch_size)
-    min_lr = 1e-7
+    warmup_steps = 10000 if total_steps > 10000 else total_steps * 0.1
     scheduler = get_cosine_with_warmup_scheduler(
         optimizer,
         num_warmup_steps=warmup_steps,
@@ -166,11 +177,13 @@ def training():
         min_lr=min_lr,
         base_lr=lr,
     )
-    loss_fn = MSELoss()
+    loss_fn = L1Loss()
+    # loss_fn = MSELoss()
+    # early_stopper = EarlyStopper(patience=early_stopping_patience)
     # ------------------------
     # saving data
     params = {
-        # "n_params": d_model * 28 + 12 * d_model**2
+        "n_params": d_model * 28 + 12 * d_model**2,
         "d_model": d_model,
         "n_known_geese": n_known_geese,
         "input_length": model.input_length,
@@ -194,6 +207,7 @@ def training():
     # logging
     train_losses = []
     val_losses = []
+    best_val_loss = float("inf")
 
     print(
         f"Doing {warmup_steps} warmup steps and {total_steps} total training steps over {num_epochs} epochs",
@@ -210,6 +224,17 @@ def training():
         val_loss = validate(model, val_loader, loss_fn, device)
         val_losses.append(val_loss)
 
+        # --------- Optuna -----------
+        if trial is not None:
+            trial.report(val_loss, epoch)
+
+            if trial.should_prune():
+                raise optuna.exceptions.TrialPruned()
+
+            # track the best score to return to Optuna
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+
         print(
             "========================================================================",
             flush=True,
@@ -220,3 +245,5 @@ def training():
         )
 
     save_training(model, train_losses, val_losses, params)
+
+    return best_val_loss

@@ -8,7 +8,7 @@ from torch.utils.data import TensorDataset, DataLoader
 
 class goose_number_transformer(nn.Module):
 
-    def __init__(self, n_known_geese, d_model, n_heads, n_layers):
+    def __init__(self, n_known_geese, d_model, n_heads, n_layers, dropout):
         super().__init__()
 
         self.d_model = d_model
@@ -21,6 +21,7 @@ class goose_number_transformer(nn.Module):
         self.dim_feedforward = 4 * self.d_model
         self.activation = "relu"
         self.bias = True
+        self.dropout = dropout
 
         # in features = 9 = 3 positional values, 3 velocity values, 3 acceleration values
         self.input_projection = nn.Linear(in_features=9, out_features=d_model)
@@ -36,7 +37,7 @@ class goose_number_transformer(nn.Module):
             d_model=self.d_model,
             nhead=self.n_heads,
             dim_feedforward=self.dim_feedforward,  # same as the attention paper
-            dropout=0.1,
+            dropout=self.dropout,
             activation=self.activation,
             layer_norm_eps=0e-5,  # standard
             bias=self.bias,
